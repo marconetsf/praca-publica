@@ -16,7 +16,7 @@ import argparse
 import json
 from datetime import date
 
-from pipelines.common import manifest, storage
+from pipelines.common import alertas, manifest, storage
 from pipelines.common.parquet import json_para_parquet
 from pipelines.siconfi.api import Buscador, paginar
 from pipelines.siconfi.transform import municipios_da_uf
@@ -85,7 +85,8 @@ def main() -> None:
     parser.add_argument("--exercicio", type=int, required=True)
     parser.add_argument("--uf", required=True, help="Sigla da UF, ex.: PE")
     args = parser.parse_args()
-    executar(args.exercicio, args.uf)
+    with alertas.falhas_alertadas(f"siconfi/dca {args.exercicio}/{args.uf.upper()}"):
+        executar(args.exercicio, args.uf)
 
 
 if __name__ == "__main__":

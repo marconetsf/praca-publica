@@ -69,3 +69,63 @@ def test_falha_de_rede_nao_estoura(monkeypatch):
 def test_resposta_nao_200_retorna_false(monkeypatch):
     monkeypatch.setattr(alertas.requests, "post", lambda *a, **k: _RespostaFake(status_code=401))
     assert alertas.alertar("mensagem") is False
+
+
+def _capturar(monkeypatch) -> list[tuple[str, str]]:
+    enviados: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        alertas, "alertar", lambda msg, severidade="INFO": enviados.append((severidade, msg))
+    )
+    return enviados
+
+
+def test_sucesso_nao_alerta(monkeypatch):
+    """Alerta de rotina vira ruído e faz o operador ignorar o canal."""
+    enviados = _capturar(monkeypatch)
+    with alertas.falhas_alertadas("siconfi/entes"):
+        pass
+    assert enviados == []
+
+
+def test_excecao_alerta_como_critico_e_repropaga(monkeypatch):
+    enviados = _capturar(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="dado suspeito"), alertas.falhas_alertadas("siconfi"):
+        raise RuntimeError("dado suspeito")
+
+    assert len(enviados) == 1
+    severidade, mensagem = enviados[0]
+    assert severidade == "CRITICO"
+    assert "siconfi" in mensagem
+    assert "RuntimeError" in mensagem
+    assert "dado suspeito" in mensagem
+
+
+def test_systemexit_tambem_alerta(monkeypatch):
+    """Os pipelines abortam com SystemExit, que não herda de Exception."""
+    enviados = _capturar(monkeypatch)
+
+    with pytest.raises(SystemExit), alertas.falhas_alertadas("siconfi/dca"):
+        raise SystemExit("Nenhuma DCA encontrada para RR/2024")
+
+    assert [severidade for severidade, _ in enviados] == ["CRITICO"]
+
+
+def test_interrupcao_manual_nao_alerta(monkeypatch):
+    """Ctrl+C é o operador desistindo, não incidente."""
+    enviados = _capturar(monkeypatch)
+
+    with pytest.raises(KeyboardInterrupt), alertas.falhas_alertadas("siconfi/dca"):
+        raise KeyboardInterrupt
+
+    assert enviados == []
+
+
+def test_falha_do_proprio_alerta_nao_mascara_o_erro_original(monkeypatch):
+    def alertar_explosivo(*a, **k):
+        raise requests.ConnectionError("telegram fora do ar")
+
+    monkeypatch.setattr(alertas, "alertar", alertar_explosivo)
+
+    with pytest.raises(ValueError, match="erro de verdade"), alertas.falhas_alertadas("siconfi"):
+        raise ValueError("erro de verdade")

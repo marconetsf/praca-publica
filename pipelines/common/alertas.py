@@ -2,6 +2,8 @@
 
 import os
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import requests
 
@@ -31,3 +33,22 @@ def alertar(mensagem: str, severidade: str = "INFO") -> bool:
     except requests.RequestException as exc:
         print(f"[alerta não enviado: {exc}] {texto}", file=sys.stderr)
         return False
+
+
+@contextmanager
+def falhas_alertadas(contexto: str) -> Iterator[None]:
+    """Avisa no canal de operações quando o bloco falha, sem engolir a exceção.
+
+    Só alerta em falha: alerta de rotina vira ruído e o operador para de olhar o canal.
+    KeyboardInterrupt fica de fora — é o operador desistindo, não incidente.
+    """
+    try:
+        yield
+    except KeyboardInterrupt:
+        raise
+    except BaseException as exc:  # inclui SystemExit, com que os pipelines abortam
+        try:
+            alertar(f"{contexto} falhou: {type(exc).__name__}: {exc}", severidade="CRITICO")
+        except Exception as falha_do_alerta:  # noqa: BLE001 — o erro original é o que importa
+            print(f"[alerta não enviado: {falha_do_alerta}]", file=sys.stderr)
+        raise

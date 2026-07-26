@@ -9,7 +9,7 @@ Uso: python -m pipelines.siconfi.ingest_entes
 import json
 from datetime import date
 
-from pipelines.common import manifest, storage
+from pipelines.common import alertas, manifest, storage
 from pipelines.common.config import fonte
 from pipelines.common.parquet import json_para_parquet
 from pipelines.siconfi.api import Buscador, paginar
@@ -41,7 +41,8 @@ def executar(*, buscar: Buscador | None = None, coleta: date | None = None) -> s
 
 
 def main() -> None:
-    print(f"entes gravados em {executar()}")
+    with alertas.falhas_alertadas("siconfi/entes"):
+        print(f"entes gravados em {executar()}")
 
 
 if __name__ == "__main__":
