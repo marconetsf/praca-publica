@@ -61,13 +61,15 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
   nos buckets; DCA sai só por `workflow_dispatch` com exercício e UF.
 - Falhas de pipeline avisam o canal de operações: envolver o `main()` em
   `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
-- Estado: sem remoto GitHub ainda (branch protection pendente disso).
+- Repo: `marconetsf/praca-publica` (público). **Main protegida: PR obrigatório** (0 aprovações,
+  CI verde, sem force-push) — não commitar direto na main, sempre branch + PR.
+- Secrets do R2 e do Telegram já cadastrados no repositório; falta `HEALTHCHECK_URL`.
 
 ## Próximo trabalho
 
-Roadmap ESCOPO.md §3: **M0.4 e M0.5 concluídos e validados contra R2 e Telegram reais**.
-Pendências que dependem do usuário: espelho **Backblaze B2** com Object Lock (é ele que
-garante a imutabilidade da raw — o R2 não tem versionamento) e conta **healthchecks.io**.
-Próximo: M0.6 (workflow agendado no Actions — precisa dos secrets do R2 no repositório) →
-M0.7 (watcher). Prazo externo mais urgente:
+Roadmap ESCOPO.md §3: **M0.1–M0.6 concluídos**. M0.6 validado com execução real no Actions
+(entes nacional + DCA do AP gravados no R2 sem tocar máquina local). Falta **M0.7 (watcher)**
+para fechar o M0. Pendências que dependem do usuário: espelho **Backblaze B2** com Object Lock
+(é ele que garante a imutabilidade da raw — o R2 não tem versionamento) e **healthchecks.io**
+(detecta o job que nem rodou; o Telegram só cobre job que falhou). Prazo externo mais urgente:
 **M0.5 onda 1 do espelhamento (INEP e SNIS) até 30/09/2026**.
