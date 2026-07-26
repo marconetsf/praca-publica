@@ -59,17 +59,32 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
   por `tests/test_workflows.py`, que também exige concurrency e alerta de falha nos agendados).
 - Ingestão agendada: `.github/workflows/ingest-mensal.yml` (dia 5, 03:00 BRT) escreve direto
   nos buckets; DCA sai só por `workflow_dispatch` com exercício e UF.
+- Watcher: `pipelines/watcher/sonda.py` + `watcher-fontes.yml` (diário, 06:00 BRT); estado em
+  `catalog/watcher_state.json`. **Nunca acoplar ao ingest** — ele precisa rodar justamente
+  quando um pipeline quebrou.
+- **Ao adicionar fonte no `fontes.yaml`, declare `sonda:`** com um endpoint real (não o
+  `api_base`, que costuma ser prefixo e dar 404), `status_ok` quando 401/403 for resposta
+  saudável, e `detectar_mudanca: false` se a assinatura oscilar entre requests. Fonte sem
+  `sonda:` não é vigiada — deixe comentado o porquê.
 - Falhas de pipeline avisam o canal de operações: envolver o `main()` em
   `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
 - Repo: `marconetsf/praca-publica` (público). **Main protegida: PR obrigatório** (0 aprovações,
   CI verde, sem force-push) — não commitar direto na main, sempre branch + PR.
-- Secrets do R2 e do Telegram já cadastrados no repositório; falta `HEALTHCHECK_URL`.
+- Secrets do R2 e do Telegram já cadastrados; faltam `HEALTHCHECK_URL` e
+  `HEALTHCHECK_WATCHER_URL` (os workflows já os consomem de forma condicional).
 
 ## Próximo trabalho
 
-Roadmap ESCOPO.md §3: **M0.1–M0.6 concluídos**. M0.6 validado com execução real no Actions
-(entes nacional + DCA do AP gravados no R2 sem tocar máquina local). Falta **M0.7 (watcher)**
-para fechar o M0. Pendências que dependem do usuário: espelho **Backblaze B2** com Object Lock
-(é ele que garante a imutabilidade da raw — o R2 não tem versionamento) e **healthchecks.io**
-(detecta o job que nem rodou; o Telegram só cobre job que falhou). Prazo externo mais urgente:
-**M0.5 onda 1 do espelhamento (INEP e SNIS) até 30/09/2026**.
+Roadmap ESCOPO.md §3: **todo o código do M0 (0.1–0.7) está escrito e validado contra os
+serviços reais** — ingestão e watcher rodam no Actions e escrevem no R2 sem tocar máquina
+local. O M0 só é declarado pronto quando o watcher acumular **3 dias seguidos** de execução
+agendada (primeira linha de base: 26/07/2026).
+
+Pendências que dependem do usuário, ambas de observabilidade/segurança e nenhuma de código:
+- espelho **Backblaze B2** com Object Lock — é ele que garante a imutabilidade da raw, já que
+  o R2 não tem versionamento; sem isso um token vazado apaga a raw sem recuperação;
+- **healthchecks.io** (2 checks: ingest e watcher) — o Telegram só cobre job que falhou, não
+  job que nem rodou, e o cron do Actions pula execuções silenciosamente.
+
+Depois do M0: **M0.5 do roadmap (espelhamento defensivo), com prazo duro — onda 1 (INEP e
+SNIS) até 30/09/2026**, antes das eleições. É o marco que o watcher existe para proteger.
