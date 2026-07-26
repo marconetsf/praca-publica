@@ -1,0 +1,58 @@
+name: Watcher de fontes
+
+on:
+  schedule:
+    # diário às 09:00 UTC = 06:00 em Brasília, antes do expediente:
+    # se uma fonte caiu de madrugada, o aviso chega antes de o dia começar
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # o watcher grava o estado compartilhado no R2
+  group: watcher-fontes
+  cancel-in-progress: false
+
+env:
+  PRACA_RAW_ROOT: s3://praca-raw
+  PRACA_DATA_ROOT: s3://praca-dados
+
+jobs:
+  sonda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      HEALTHCHECK_WATCHER_URL: ${{ secrets.HEALTHCHECK_WATCHER_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -e .
+
+      - name: Sondar fontes
+        run: python -m pipelines.watcher.sonda
+
+      - name: Ping no healthchecks.io (dead-man switch)
+        # check próprio: o watcher parar de rodar é pior do que uma fonte cair,
+        # porque some justamente a vigilância que avisaria
+        if: success() && env.HEALTHCHECK_WATCHER_URL != ''
+        run: curl -fsS -m 10 --retry 5 "$HEALTHCHECK_WATCHER_URL"
+
+      - name: Avisar falha no Telegram
+        # curl em vez do alertas.py: precisa funcionar mesmo se o Python não subiu
+        if: failure() && env.TELEGRAM_BOT_TOKEN != ''
+        run: |
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 CRITICO — watcher de fontes falhou: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
