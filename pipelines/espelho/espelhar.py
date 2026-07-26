@@ -20,18 +20,22 @@ Uso:
 
 import argparse
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import requests
 
-from pipelines.common import alertas, manifest, storage
+from pipelines.common import alertas, manifest, storage, tls
+from pipelines.common.config import fonte as carregar_fonte
 from pipelines.common.config import fontes as carregar_fontes
 from pipelines.common.http import UA
 
 TAMANHO_BLOCO = 1 << 20  # 1 MiB
 TIMEOUT = (30, 300)  # (conexão, leitura): arquivo grande demora entre blocos
+TENTATIVAS = 5
+ESPERA_INICIAL = 3.0  # segundos, dobrando a cada tentativa
 
 
 def nome_do_arquivo(url: str) -> str:
@@ -45,10 +49,20 @@ def caminho_parcial(destino: Path) -> Path:
     return destino.with_suffix(destino.suffix + ".parcial")
 
 
-def _requisitar_real(url: str, *, headers: dict | None = None):
-    return requests.get(
-        url, headers={"User-Agent": UA, **(headers or {})}, stream=True, timeout=TIMEOUT
-    )
+def requisitador(ca_extra: str | None = None):
+    """Downloader real; `ca_extra` completa a cadeia TLS de servidores mal configurados."""
+    verificacao = tls.bundle(ca_extra)
+
+    def requisitar(url: str, *, headers: dict | None = None):
+        return requests.get(
+            url,
+            headers={"User-Agent": UA, **(headers or {})},
+            stream=True,
+            timeout=TIMEOUT,
+            verify=verificacao,
+        )
+
+    return requisitar
 
 
 def baixar(
@@ -57,9 +71,30 @@ def baixar(
     *,
     requisitar=None,
     tamanho_bloco: int = TAMANHO_BLOCO,
+    tentativas: int = TENTATIVAS,
+    espera: float = ESPERA_INICIAL,
 ) -> Path:
-    """Baixa `url` para `destino`, retomando um `.parcial` anterior se houver."""
-    requisitar = requisitar or _requisitar_real
+    """Baixa `url` para `destino`, com retomada e novas tentativas em queda de rede.
+
+    Resume e retry se completam: cada tentativa retoma do `.parcial`, então uma
+    conexão que cai no byte 900 MB não joga fora o que já veio.
+    """
+    ultima: Exception | None = None
+    for tentativa in range(tentativas):
+        try:
+            return _baixar_uma_vez(url, destino, requisitar=requisitar, tamanho_bloco=tamanho_bloco)
+        except (OSError, ConnectionError) as exc:
+            # falha de transporte: o parcial sobreviveu, a próxima tentativa continua
+            ultima = exc
+            if espera:
+                time.sleep(espera * (2**tentativa))
+    raise ultima  # type: ignore[misc]
+
+
+def _baixar_uma_vez(
+    url: str, destino: Path, *, requisitar=None, tamanho_bloco: int = TAMANHO_BLOCO
+) -> Path:
+    requisitar = requisitar or requisitador()
     parcial = caminho_parcial(destino)
     parcial.parent.mkdir(parents=True, exist_ok=True)
 
@@ -97,6 +132,8 @@ def espelhar(
     nome: str | None = None,
     coleta: date | None = None,
     requisitar=None,
+    tentativas: int = TENTATIVAS,
+    espera: float = ESPERA_INICIAL,
 ) -> dict:
     """Copia a URL para a raw da fonte e registra hash e tamanho no manifesto."""
     nome = nome or nome_do_arquivo(url)
@@ -105,7 +142,13 @@ def espelhar(
         return {"pulado": True, "chave": chave}
 
     with tempfile.TemporaryDirectory(prefix="praca-espelho-") as temporario:
-        local = baixar(url, Path(temporario) / nome, requisitar=requisitar)
+        local = baixar(
+            url,
+            Path(temporario) / nome,
+            requisitar=requisitar,
+            tentativas=tentativas,
+            espera=espera,
+        )
         # hash e subida por streaming: o alvo do espelho são arquivos de GBs
         sha256 = manifest.sha256_arquivo(local)
         tamanho = local.stat().st_size
@@ -156,7 +199,14 @@ def main() -> None:
 
     with alertas.falhas_alertadas(f"espelho/{args.fonte or 'todas'}"):
         for fonte, url in alvos:
-            resultado = espelhar(fonte, url, nome=args.nome if args.url else None)
+            # servidor com cadeia TLS incompleta declara o intermediário no YAML
+            ca_extra = carregar_fonte(fonte).get("tls_ca")
+            resultado = espelhar(
+                fonte,
+                url,
+                nome=args.nome if args.url else None,
+                requisitar=requisitador(ca_extra),
+            )
             if resultado["pulado"]:
                 print(f"já espelhado: {resultado['chave']}")
             else:

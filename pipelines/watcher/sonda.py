@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 
 import requests
 
-from pipelines.common import storage
+from pipelines.common import storage, tls
 from pipelines.common.alertas import alertar
 from pipelines.common.config import fontes as carregar_fontes
 
@@ -45,22 +45,36 @@ def alvos_de_sonda(fontes: dict) -> dict[str, dict]:
             "url": sonda_declarada["url"],
             "status_ok": list(sonda_declarada.get("status_ok") or []),
             "detectar_mudanca": sonda_declarada.get("detectar_mudanca", True),
+            # cadeia TLS incompleta na origem não pode virar "fonte caiu"
+            "ca": config.get("tls_ca"),
         }
     return alvos
 
 
-def _requisitar_real(metodo: str, url: str, **kwargs) -> requests.Response:
+def _requisitar_real(metodo: str, url: str, ca: str | None = None, **kwargs) -> requests.Response:
     from pipelines.common.http import UA
 
     cabecalhos = {"User-Agent": UA, **kwargs.pop("headers", {})}
     return requests.request(
-        metodo, url, headers=cabecalhos, timeout=TIMEOUT, allow_redirects=True, **kwargs
+        metodo,
+        url,
+        headers=cabecalhos,
+        timeout=TIMEOUT,
+        allow_redirects=True,
+        verify=tls.bundle(ca),
+        **kwargs,
     )
 
 
-def sondar(url: str, *, status_ok: list[int] | None = None, requisitar=None) -> dict:
+def sondar(
+    url: str, *, status_ok: list[int] | None = None, ca: str | None = None, requisitar=None
+) -> dict:
     """Um HEAD por URL; onde HEAD é bloqueado, GET pedindo só o primeiro byte."""
-    requisitar = requisitar or _requisitar_real
+    if requisitar is None:
+
+        def requisitar(metodo, url, **kwargs):
+            return _requisitar_real(metodo, url, ca=ca, **kwargs)
+
     try:
         resposta = requisitar("HEAD", url)
         if resposta.status_code in (403, 405, 501):
@@ -156,7 +170,9 @@ def executar(*, fontes: dict | None = None, requisitar=None) -> dict:
     indisponiveis = 0
 
     for nome, alvo in alvos.items():
-        atual = sondar(alvo["url"], status_ok=alvo["status_ok"], requisitar=requisitar)
+        atual = sondar(
+            alvo["url"], status_ok=alvo["status_ok"], ca=alvo["ca"], requisitar=requisitar
+        )
         eventos = comparar(nome, estado.get(nome), atual, detectar_mudanca=alvo["detectar_mudanca"])
         for severidade, mensagem in eventos:
             alertar(mensagem, severidade=severidade)

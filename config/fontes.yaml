@@ -75,6 +75,27 @@ bcb:
     # sgs_base é prefixo (404 sozinho); série 432 = Selic meta, sempre presente
     url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json
 
+inep:
+  portal: https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados
+  download_base: https://download.inep.gov.br
+  # o servidor manda só o certificado folha, sem o intermediário: o navegador
+  # busca o intermediário sozinho (AIA), o Python não. Sem este bundle, toda
+  # conexão falha com CERTIFICATE_VERIFY_FAILED. Ver pipelines/common/tls.py
+  tls_ca: config/ca/inep.pem
+  sonda:
+    url: https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2024.zip
+  # Onda 1 do M0.5: o INEP apagou séries em 2022 e nunca republicou completas.
+  # Confirmado em 2026-07-26: IDEB de 2019 e 2021 já responde 404 nestas URLs —
+  # sobrou só 2023. Espelhar o que ainda existe, antes das eleições.
+  espelho:
+    - https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2020.zip
+    - https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2021.zip
+    - https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2022.zip
+    - https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2023.zip
+    - https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2024.zip
+    - https://download.inep.gov.br/ideb/resultados/divulgacao_anos_iniciais_municipios_2023.zip
+    - https://download.inep.gov.br/ideb/resultados/divulgacao_anos_finais_municipios_2023.zip
+
 datasus:
   ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
   # preferir pysus para download + conversão DBC->parquet

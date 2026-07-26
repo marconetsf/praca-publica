@@ -134,10 +134,57 @@ def test_download_interrompido_preserva_o_parcial(tmp_path):
         return Explosiva(CORPO)
 
     with pytest.raises(ConnectionError):
-        espelhar.baixar("https://x/a.zip", destino, requisitar=requisitar)
+        espelhar.baixar("https://x/a.zip", destino, requisitar=requisitar, tentativas=1, espera=0)
 
     assert espelhar.caminho_parcial(destino).read_bytes() == CORPO[:500]
     assert not destino.exists()
+
+
+def test_queda_de_conexao_e_retomada_automaticamente(tmp_path):
+    """O download.inep.gov.br reseta conexões no meio do handshake, sem padrão."""
+    tentativas = []
+
+    def requisitar(url, *, headers=None):
+        tentativas.append(headers.get("Range") if headers else None)
+        if len(tentativas) == 1:
+
+            class Explosiva(RespostaFalsa):
+                def iter_content(self, chunk_size=8192):
+                    yield CORPO[:1000]
+                    raise ConnectionError("conexão resetada pelo host remoto")
+
+            return Explosiva(CORPO)
+        return servidor(CORPO)(url, headers=headers)
+
+    destino = tmp_path / "a.zip"
+    espelhar.baixar(url="https://inep/a.zip", destino=destino, requisitar=requisitar, espera=0)
+
+    assert tentativas == [None, "bytes=1000-"]  # retomou de onde parou
+    assert destino.read_bytes() == CORPO
+
+
+def test_desiste_depois_das_tentativas(tmp_path):
+    def requisitar(url, *, headers=None):
+        raise ConnectionError("servidor fora do ar")
+
+    with pytest.raises(ConnectionError):
+        espelhar.baixar(
+            "https://x/a.zip", tmp_path / "a.zip", requisitar=requisitar, tentativas=3, espera=0
+        )
+
+
+def test_erro_de_integridade_nao_e_retentado(tmp_path):
+    """Content-Length divergente é defeito do arquivo, não da rede: insistir não resolve."""
+    chamadas = []
+
+    def requisitar(url, *, headers=None):
+        chamadas.append(1)
+        return RespostaFalsa(b"curto", headers={"Content-Length": "999"})
+
+    with pytest.raises(RuntimeError, match="incompleto"):
+        espelhar.baixar("https://x/a.zip", tmp_path / "a.zip", requisitar=requisitar, espera=0)
+
+    assert len(chamadas) == 1
 
 
 # ---------------------------------------------------------------- espelhar
@@ -184,7 +231,9 @@ def test_falha_no_download_nao_registra_no_manifesto(storage_local):
         raise ConnectionError("servidor fora do ar")
 
     with pytest.raises(ConnectionError):
-        espelhar.espelhar("inep", "https://inep/a.zip", requisitar=requisitar)
+        espelhar.espelhar(
+            "inep", "https://inep/a.zip", requisitar=requisitar, tentativas=1, espera=0
+        )
 
     assert not manifest.ja_processado("espelho/inep/a.zip")
 
