@@ -1,13 +1,11 @@
 """Acesso centralizado a config/fontes.yaml e aos caminhos do projeto."""
 
 from functools import lru_cache
-from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
 
-RAIZ = Path(__file__).resolve().parents[2]
-load_dotenv(RAIZ / ".env")  # credenciais locais (gitignored); no CI vêm de Secrets
+from pipelines.common import RAIZ  # importar o pacote já carrega o .env
+
 CONFIG = RAIZ / "config" / "fontes.yaml"
 # Caminhos de dados vivem em storage.py (uri/caminho_raw): montar Path aqui faria
 # o pipeline escrever no disco local mesmo com PRACA_DATA_ROOT apontando para o R2.
