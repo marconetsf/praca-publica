@@ -95,6 +95,17 @@ def test_fontes_instaveis_do_catalogo_estao_marcadas():
     assert alvos["siconfi"]["detectar_mudanca"] is True
 
 
+def test_alvo_herda_o_tls_ca_da_fonte():
+    """Sem isso o watcher acusaria o INEP de caído por causa da cadeia TLS incompleta."""
+    fontes = {"inep": {"tls_ca": "config/ca/inep.pem", "sonda": {"url": "https://inep/a.zip"}}}
+    assert sonda.alvos_de_sonda(fontes)["inep"]["ca"] == "config/ca/inep.pem"
+
+
+def test_alvo_sem_tls_ca_fica_com_none():
+    fontes = {"x": {"sonda": {"url": "https://x"}}}
+    assert sonda.alvos_de_sonda(fontes)["x"]["ca"] is None
+
+
 def test_status_ok_declarado_e_preservado():
     """401 no Portal da Transparência significa 'de pé, exigindo token'."""
     fontes = {"pt": {"sonda": {"url": "https://x", "status_ok": [200, 401]}}}
