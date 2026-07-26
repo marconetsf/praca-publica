@@ -55,7 +55,10 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
   `ingest_*.py` (orquestração fina — main() não contém lógica).
 - Encoding declarado por fonte no YAML (SICONFI utf-8; Receita/TSE/CVM latin-1) — nunca auto-detect.
 - Throttle SICONFI: 1 req/s (bloqueiam acima disso).
-- CI: `.github/workflows/ci.yml` (lint + formato + pytest; actions pinnadas por SHA).
+- CI: `.github/workflows/ci.yml` (lint + formato + pytest; actions pinnadas por SHA — cobrado
+  por `tests/test_workflows.py`, que também exige concurrency e alerta de falha nos agendados).
+- Ingestão agendada: `.github/workflows/ingest-mensal.yml` (dia 5, 03:00 BRT) escreve direto
+  nos buckets; DCA sai só por `workflow_dispatch` com exercício e UF.
 - Falhas de pipeline avisam o canal de operações: envolver o `main()` em
   `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
 - Estado: sem remoto GitHub ainda (branch protection pendente disso).

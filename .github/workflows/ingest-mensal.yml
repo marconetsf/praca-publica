@@ -1,0 +1,72 @@
+name: Ingestão mensal (SICONFI)
+
+on:
+  schedule:
+    # dia 5 às 06:00 UTC = 03:00 em Brasília; dia 5 dá folga para o SICONFI
+    # publicar o que fecha no mês anterior
+    - cron: "0 6 5 * *"
+  workflow_dispatch:
+    inputs:
+      exercicio:
+        description: "Exercício da DCA (ex.: 2024). Vazio = só atualiza a dimensão de entes"
+        required: false
+        default: ""
+      uf:
+        description: "UF da DCA (ex.: PE). Vazio = só atualiza a dimensão de entes"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  # duas execuções simultâneas corromperiam o manifesto compartilhado no R2
+  group: ingest-siconfi
+  cancel-in-progress: false
+
+env:
+  PRACA_RAW_ROOT: s3://praca-raw
+  PRACA_DATA_ROOT: s3://praca-dados
+
+jobs:
+  siconfi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -e .
+
+      - name: Dimensão de entes
+        run: python -m pipelines.siconfi.ingest_entes
+
+      - name: DCA (só quando disparado manualmente com exercício e UF)
+        if: inputs.uf != '' && inputs.exercicio != ''
+        run: python -m pipelines.siconfi.ingest_dca --exercicio "${{ inputs.exercicio }}" --uf "${{ inputs.uf }}"
+
+      - name: Ping no healthchecks.io (dead-man switch)
+        # o cron do Actions pula execuções silenciosamente; a ausência de ping é
+        # o único jeito de detectar o job que nem rodou
+        if: success() && env.HEALTHCHECK_URL != ''
+        run: curl -fsS -m 10 --retry 5 "$HEALTHCHECK_URL"
+
+      - name: Avisar falha no Telegram
+        # curl em vez do alertas.py de propósito: este passo precisa funcionar
+        # mesmo quando a falha foi o próprio ambiente Python não subir
+        if: failure() && env.TELEGRAM_BOT_TOKEN != ''
+        run: |
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 CRITICO — ingest-mensal (SICONFI) falhou: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
