@@ -31,6 +31,7 @@ from pipelines.common import alertas, manifest, storage, tls
 from pipelines.common.config import fonte as carregar_fonte
 from pipelines.common.config import fontes as carregar_fontes
 from pipelines.common.http import UA
+from pipelines.espelho import ftp
 
 TAMANHO_BLOCO = 1 << 20  # 1 MiB
 TIMEOUT = (30, 300)  # (conexão, leitura): arquivo grande demora entre blocos
@@ -39,7 +40,7 @@ ESPERA_INICIAL = 3.0  # segundos, dobrando a cada tentativa
 
 
 def nome_do_arquivo(url: str) -> str:
-    nome = unquote(Path(urlparse(url).path).name)
+    nome = Path(unquote(urlparse(url).path)).name
     if not nome:
         raise ValueError(f"não dá para deduzir o nome do arquivo em {url} — informe --nome")
     return nome
@@ -134,21 +135,21 @@ def espelhar(
     requisitar=None,
     tentativas: int = TENTATIVAS,
     espera: float = ESPERA_INICIAL,
+    ftp_encoding: str = "utf-8",
 ) -> dict:
-    """Copia a URL para a raw da fonte e registra hash e tamanho no manifesto."""
+    """Copia a URL (http ou ftp) para a raw da fonte e registra hash e tamanho."""
     nome = nome or nome_do_arquivo(url)
     chave = f"espelho/{fonte}/{nome}"
     if manifest.ja_processado(chave):
         return {"pulado": True, "chave": chave}
 
     with tempfile.TemporaryDirectory(prefix="praca-espelho-") as temporario:
-        local = baixar(
-            url,
-            Path(temporario) / nome,
-            requisitar=requisitar,
-            tentativas=tentativas,
-            espera=espera,
-        )
+        alvo = Path(temporario) / nome
+        if url.startswith("ftp://"):
+            # DataSUS e PDET não têm alternativa HTTP utilizável
+            local = ftp.baixar(url, alvo, encoding=ftp_encoding)
+        else:
+            local = baixar(url, alvo, requisitar=requisitar, tentativas=tentativas, espera=espera)
         # hash e subida por streaming: o alvo do espelho são arquivos de GBs
         sha256 = manifest.sha256_arquivo(local)
         tamanho = local.stat().st_size
@@ -199,13 +200,15 @@ def main() -> None:
 
     with alertas.falhas_alertadas(f"espelho/{args.fonte or 'todas'}"):
         for fonte, url in alvos:
-            # servidor com cadeia TLS incompleta declara o intermediário no YAML
-            ca_extra = carregar_fonte(fonte).get("tls_ca")
+            config = carregar_fonte(fonte)
             resultado = espelhar(
                 fonte,
                 url,
                 nome=args.nome if args.url else None,
-                requisitar=requisitador(ca_extra),
+                # servidor com cadeia TLS incompleta declara o intermediário no YAML
+                requisitar=requisitador(config.get("tls_ca")),
+                # nomes de arquivo do FTP do MTPS vêm em latin-1
+                ftp_encoding=config.get("ftp_encoding", "utf-8"),
             )
             if resultado["pulado"]:
                 print(f"já espelhado: {resultado['chave']}")

@@ -247,6 +247,34 @@ def test_url_sem_nome_util_falha_cedo(storage_local):
         espelhar.nome_do_arquivo("https://exemplo.gov.br/")
 
 
+def test_espelhar_url_ftp_usa_o_cliente_ftp(storage_local, monkeypatch):
+    """DataSUS e PDET só existem por FTP — o espelho precisa falar os dois protocolos."""
+    chamadas = {}
+
+    def baixar_ftp_falso(url, destino, *, encoding="utf-8", **kwargs):
+        chamadas["url"] = url
+        chamadas["encoding"] = encoding
+        destino.write_bytes(CORPO)
+        return destino
+
+    monkeypatch.setattr(espelhar.ftp, "baixar", baixar_ftp_falso)
+
+    resultado = espelhar.espelhar(
+        "rais_caged",
+        "ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202605/CAGEDMOV202605.7z",
+        ftp_encoding="latin-1",
+    )
+
+    assert chamadas["encoding"] == "latin-1"
+    assert resultado["bytes"] == len(CORPO)
+    assert storage.existe(storage.caminho_raw("rais_caged", "CAGEDMOV202605.7z"))
+
+
+def test_nome_do_arquivo_decodifica_espaco_em_url_ftp():
+    nome = espelhar.nome_do_arquivo("ftp://host/NOVO%20CAGED/2026/CAGEDMOV202605.7z")
+    assert nome == "CAGEDMOV202605.7z"
+
+
 # ---------------------------------------------------------------- catálogo
 
 
