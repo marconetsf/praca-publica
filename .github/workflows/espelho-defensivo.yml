@@ -1,0 +1,60 @@
+name: Espelho defensivo
+
+# Operação sob demanda, não agendada: espelhar é ato pontual de resgate, e a
+# lista de alvos vive no fontes.yaml. Mês novo do CAGED entra editando o YAML
+# e rodando isto de novo — o manifesto garante que nada é rebaixado duas vezes.
+on:
+  workflow_dispatch:
+    inputs:
+      fonte:
+        description: "Fonte do fontes.yaml (ex.: inep, datasus, rais_caged). Vazio = todas"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  # duas execuções gravariam o mesmo manifesto no R2
+  group: espelho-defensivo
+  cancel-in-progress: false
+
+env:
+  PRACA_RAW_ROOT: s3://praca-raw
+  PRACA_DATA_ROOT: s3://praca-dados
+
+jobs:
+  espelhar:
+    runs-on: ubuntu-latest
+    # RAIS 2024 sozinha tem 3,7 GB em 9 arquivos, um deles de 1 GB
+    timeout-minutes: 240
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -e .
+
+      - name: Espelhar
+        run: |
+          if [ -n "${{ inputs.fonte }}" ]; then
+            python -m pipelines.espelho.espelhar --fonte "${{ inputs.fonte }}"
+          else
+            python -m pipelines.espelho.espelhar --todas
+          fi
+
+      - name: Avisar falha no Telegram
+        if: failure() && env.TELEGRAM_BOT_TOKEN != ''
+        run: |
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 CRITICO — espelho defensivo falhou: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

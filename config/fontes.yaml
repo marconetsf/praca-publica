@@ -123,13 +123,47 @@ datasus:
   ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
   # preferir pysus para download + conversão DBC->parquet
   # sem sonda: só existe por FTP (porta 443 do host dá timeout) — watcher v2
+  #
+  # Onda 2 do M0.5 — "DataSUS alvo": os agregados NACIONAIS (DOBR/DNBR), não os
+  # 812 arquivos por UF. O SIM tem a série nacional completa de mortalidade
+  # 1996–2024 (2,4 GB); o SINASC só publica nacional de 2014 a 2017 — os demais
+  # anos existem apenas por UF (verificado em 27/07/2026).
+  espelho:
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2015.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2016.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2017.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2018.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2019.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2020.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2021.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2022.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2023.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SIM/CID10/DORES/DOBR2024.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SINASC/NOV/DNRES/DNBR2014.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SINASC/NOV/DNRES/DNBR2015.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SINASC/NOV/DNRES/DNBR2016.dbc
+    - ftp://ftp.datasus.gov.br/dissemin/publicos/SINASC/NOV/DNRES/DNBR2017.dbc
 
 rais_caged:
   ftp: ftp://ftp.mtps.gov.br/pdet/microdados/
   encoding_rais_antiga: latin-1
   encoding_novo_caged: utf-8
+  # o FTP devolve NOMES DE ARQUIVO em latin-1 (o diretório "NOVO CAGED" tem PDF
+  # com ç e õ); com o utf-8 padrão do ftplib, listar estoura UnicodeDecodeError
+  # antes de qualquer download. Isto é o encoding dos nomes, não do conteúdo.
+  ftp_encoding: latin-1
   # sem sonda: só FTP; o portal pdet.mte.gov.br está com certificado TLS inválido
   # (verificado em 2026-07-26) e não serve como substituto
+  #
+  # Onda 2 — "CAGED/RAIS recentes": CAGED de 2026 (até 202605, o último
+  # publicado) e RAIS 2024, o exercício fechado mais recente.
+  # Mês novo do CAGED entra editando esta lista.
+  espelho:
+    - ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202601/CAGEDMOV202601.7z
+    - ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202602/CAGEDMOV202602.7z
+    - ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202603/CAGEDMOV202603.7z
+    - ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202604/CAGEDMOV202604.7z
+    - ftp://ftp.mtps.gov.br/pdet/microdados/NOVO%20CAGED/2026/202605/CAGEDMOV202605.7z
 
 datajud:
   api_base: https://api-publica.datajud.cnj.jus.br
