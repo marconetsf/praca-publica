@@ -56,12 +56,15 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 - Encoding declarado por fonte no YAML (SICONFI utf-8; Receita/TSE/CVM latin-1) — nunca auto-detect.
 - Throttle SICONFI: 1 req/s (bloqueiam acima disso).
 - CI: `.github/workflows/ci.yml` (lint + formato + pytest; actions pinnadas por SHA).
-- Estado: sem commit inicial/remoto GitHub ainda (branch protection pendente disso).
+- Falhas de pipeline avisam o canal de operações: envolver o `main()` em
+  `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
+- Estado: sem remoto GitHub ainda (branch protection pendente disso).
 
 ## Próximo trabalho
 
-Roadmap ESCOPO.md §3: M0.4 (retrofit de storage/raw datada/janela **feito**; faltam os buckets
-R2 + espelho B2, que dependem de credenciais do usuário) → M0.5 (alertas Telegram: código
-pronto, faltam o bot e o healthchecks.io; nenhum pipeline chama `alertar()` ainda) →
-M0.6 (workflow agendado) → M0.7 (watcher). Prazo externo mais urgente:
+Roadmap ESCOPO.md §3: **M0.4 e M0.5 concluídos e validados contra R2 e Telegram reais**.
+Pendências que dependem do usuário: espelho **Backblaze B2** com Object Lock (é ele que
+garante a imutabilidade da raw — o R2 não tem versionamento) e conta **healthchecks.io**.
+Próximo: M0.6 (workflow agendado no Actions — precisa dos secrets do R2 no repositório) →
+M0.7 (watcher). Prazo externo mais urgente:
 **M0.5 onda 1 do espelhamento (INEP e SNIS) até 30/09/2026**.
