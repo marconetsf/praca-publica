@@ -190,6 +190,29 @@ def test_coletas_mais_recentes_vazio_sem_raw(monkeypatch, tmp_path):
     assert storage.coletas_mais_recentes("siconfi", "*.json") == []
 
 
+def test_enviar_arquivo_copia_sem_passar_pela_memoria(monkeypatch, tmp_path):
+    """Espelho de 1 GB não cabe em read_bytes() — a subida precisa ser por arquivo."""
+    monkeypatch.setenv("PRACA_DATA_ROOT", str(tmp_path / "dados"))
+    origem = tmp_path / "grande.zip"
+    origem.write_bytes(b"conteudo binario" * 1000)
+
+    destino = storage.uri("raw", "fonte", "grande.zip")
+    storage.enviar_arquivo(origem, destino)
+
+    assert storage.ler_bytes(destino) == origem.read_bytes()
+
+
+def test_enviar_arquivo_cria_diretorios_intermediarios(monkeypatch, tmp_path):
+    monkeypatch.setenv("PRACA_DATA_ROOT", str(tmp_path / "dados"))
+    origem = tmp_path / "a.txt"
+    origem.write_bytes(b"x")
+
+    destino = storage.uri("raw", "fonte", "2026-07-26", "sub", "a.txt")
+    storage.enviar_arquivo(origem, destino)
+
+    assert storage.existe(destino)
+
+
 def test_opcoes_fs_r2_sem_credenciais_falha_claro(monkeypatch):
     monkeypatch.delenv("R2_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("R2_ACCESS_KEY_ID", raising=False)

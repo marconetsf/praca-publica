@@ -65,6 +65,13 @@ def escrever_bytes(destino: str, dados: bytes) -> None:
         f.write(dados)
 
 
+def enviar_arquivo(origem, destino: str) -> None:
+    """Sobe um arquivo local sem carregá-lo na memória (espelho pode ter GBs)."""
+    fs, caminho = _fs(destino)
+    fs.makedirs(fs._parent(caminho), exist_ok=True)
+    fs.put_file(str(origem), caminho)
+
+
 def ler_bytes(destino: str) -> bytes:
     fs, caminho = _fs(destino)
     with fs.open(caminho, "rb") as f:
