@@ -5,18 +5,34 @@ Nenhum pipeline monta caminho na mão — sempre via `uri()`.
 """
 
 import os
+from datetime import date
 
 import fsspec
 
 from pipelines.common.config import RAIZ
 
 
-def raiz() -> str:
+def raiz(camada: str | None = None) -> str:
+    """Raiz da camada. A raw tem raiz própria porque mora em outro bucket.
+
+    Topologia da ARQUITETURA §2: `praca-raw` guarda só `raw/` (token de escrita
+    escopado nele) e `praca-dados` guarda staging/marts/serving. Local, sem
+    PRACA_RAW_ROOT, tudo compartilha a mesma pasta.
+    """
+    if camada == "raw":
+        propria = os.environ.get("PRACA_RAW_ROOT")
+        if propria:
+            return propria
     return os.environ.get("PRACA_DATA_ROOT") or str(RAIZ / "data")
 
 
 def uri(camada: str, *partes: str) -> str:
-    return "/".join([raiz().rstrip("/\\"), camada, *partes])
+    return "/".join([raiz(camada).rstrip("/\\"), camada, *partes])
+
+
+def caminho_raw(fonte: str, *partes: str, coleta: date | None = None) -> str:
+    """`raw/{fonte}/{AAAA-MM-DD}/...` — cada coleta em sua pasta (regra 6: raw é imutável)."""
+    return uri("raw", fonte, (coleta or date.today()).isoformat(), *partes)
 
 
 def opcoes_fs(destino: str) -> dict:
@@ -58,3 +74,28 @@ def ler_bytes(destino: str) -> bytes:
 def existe(destino: str) -> bool:
     fs, caminho = _fs(destino)
     return fs.exists(caminho)
+
+
+def listar(padrao: str) -> list[str]:
+    """Expande um glob e devolve URIs completas (o fsspec devolve o caminho sem esquema)."""
+    fs, caminho = _fs(padrao)
+    prefixo = "s3://" if padrao.startswith("s3://") else ""
+    return sorted(prefixo + achado for achado in fs.glob(caminho))
+
+
+def coletas_mais_recentes(fonte: str, *partes: str) -> list[str]:
+    """A versão mais nova de cada arquivo da raw, varrendo todas as datas de coleta.
+
+    A raw acumula uma pasta por dia; o staging precisa do último estado de cada
+    arquivo — sem perder o que foi coletado antes e não voltou a aparecer.
+    """
+    marcador = f"/raw/{fonte}/"
+    recentes: dict[str, tuple[str, str]] = {}
+    for achado in listar(uri("raw", fonte, "*", *partes)):
+        _, _, resto = achado.replace("\\", "/").partition(marcador)
+        coleta, _, chave = resto.partition("/")
+        if not chave:
+            continue
+        if chave not in recentes or coleta > recentes[chave][0]:
+            recentes[chave] = (coleta, achado)
+    return [recentes[chave][1] for chave in sorted(recentes)]

@@ -41,9 +41,16 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 - **TDD é obrigatório em todo desenvolvimento**: escrever o teste antes (vermelho), implementar
   (verde), refatorar. Nenhum módulo novo sem teste que falhou primeiro. Testes que tocam rede
   levam `@pytest.mark.live` (excluídos por padrão e no CI).
-- Camadas: `data/raw` (originais imutáveis) → `data/staging` (parquet zstd) → `data/marts`.
-- `pipelines/common/`: `config.py` (fontes.yaml + caminhos), `http.py` (retry+throttle),
-  `manifest.py` (idempotência), `parquet.py` (JSON→parquet).
+- Camadas: `raw/{fonte}/{AAAA-MM-DD}/` (originais imutáveis, uma pasta por coleta) →
+  `staging/` (parquet zstd) → `marts/`. Nenhum módulo monta caminho na mão: tudo por
+  `storage.uri()` / `storage.caminho_raw()`. Na cloud são **dois buckets**: `PRACA_RAW_ROOT`
+  (`praca-raw`, só a raw) e `PRACA_DATA_ROOT` (`praca-dados`, o resto) — tokens R2 escopados
+  por bucket; local, sem `PRACA_RAW_ROOT`, tudo cai na mesma pasta.
+- `pipelines/common/`: `config.py` (fontes.yaml), `storage.py` (local ↔ R2 + raw datada),
+  `http.py` (retry+throttle), `manifest.py` (idempotência + janela de captura),
+  `parquet.py` (JSON→parquet; `pragmas_s3` ensina o duckdb a ler/gravar no R2).
+- Ausência de dado é lacuna provisória: `manifest.registrar(..., completo=False)` faz a chave
+  ser reconsultada após `JANELA_PADRAO_DIAS` (entrega atrasada precisa entrar depois).
 - `pipelines/siconfi/`: `api.py` (paginação, buscador injetável), `transform.py` (funções puras),
   `ingest_*.py` (orquestração fina — main() não contém lógica).
 - Encoding declarado por fonte no YAML (SICONFI utf-8; Receita/TSE/CVM latin-1) — nunca auto-detect.
@@ -53,6 +60,8 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 
 ## Próximo trabalho
 
-Roadmap ESCOPO.md §3: M0.4 (storage R2/B2 — precisa de credenciais do usuário) → M0.5 (alertas
-Telegram) → M0.6 (workflow agendado) → M0.7 (watcher). Prazo externo mais urgente:
+Roadmap ESCOPO.md §3: M0.4 (retrofit de storage/raw datada/janela **feito**; faltam os buckets
+R2 + espelho B2, que dependem de credenciais do usuário) → M0.5 (alertas Telegram: código
+pronto, faltam o bot e o healthchecks.io; nenhum pipeline chama `alertar()` ainda) →
+M0.6 (workflow agendado) → M0.7 (watcher). Prazo externo mais urgente:
 **M0.5 onda 1 do espelhamento (INEP e SNIS) até 30/09/2026**.

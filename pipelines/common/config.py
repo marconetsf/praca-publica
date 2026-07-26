@@ -9,9 +9,8 @@ from dotenv import load_dotenv
 RAIZ = Path(__file__).resolve().parents[2]
 load_dotenv(RAIZ / ".env")  # credenciais locais (gitignored); no CI vêm de Secrets
 CONFIG = RAIZ / "config" / "fontes.yaml"
-RAW = RAIZ / "data" / "raw"
-STAGING = RAIZ / "data" / "staging"
-MARTS = RAIZ / "data" / "marts"
+# Caminhos de dados vivem em storage.py (uri/caminho_raw): montar Path aqui faria
+# o pipeline escrever no disco local mesmo com PRACA_DATA_ROOT apontando para o R2.
 
 
 @lru_cache(maxsize=1)

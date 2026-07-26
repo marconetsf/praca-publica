@@ -7,35 +7,41 @@ Uso: python -m pipelines.siconfi.ingest_entes
 """
 
 import json
+from datetime import date
 
-from pipelines.common import manifest
-from pipelines.common.config import RAW, STAGING, fonte
+from pipelines.common import manifest, storage
+from pipelines.common.config import fonte
 from pipelines.common.parquet import json_para_parquet
-from pipelines.siconfi.api import paginar
+from pipelines.siconfi.api import Buscador, paginar
 from pipelines.siconfi.transform import validar_minimo
 
 MINIMO_ENTES = 5000  # ~5.598 esperados; menos que isso = resposta truncada/suspeita
 
 
-def main() -> None:
-    raw_dir = RAW / "siconfi"
-    raw_dir.mkdir(parents=True, exist_ok=True)
+def executar(*, buscar: Buscador | None = None, coleta: date | None = None) -> str:
+    """Coleta os entes, guarda a raw do dia e promove ao staging. Devolve o parquet."""
+    coleta = coleta or date.today()
 
-    itens = validar_minimo(paginar("entes"), minimo=MINIMO_ENTES, contexto="entes")
+    itens = validar_minimo(paginar("entes", buscar=buscar), minimo=MINIMO_ENTES, contexto="entes")
+    dados = json.dumps(itens, ensure_ascii=False).encode("utf-8")
 
-    raw_path = raw_dir / "entes.json"
-    raw_path.write_text(json.dumps(itens, ensure_ascii=False), encoding="utf-8")
+    raw = storage.caminho_raw("siconfi", "entes.json", coleta=coleta)
+    storage.escrever_bytes(raw, dados)
 
-    parquet = STAGING / "siconfi" / "entes.parquet"
-    linhas = json_para_parquet(raw_path, parquet)
+    destino = storage.uri("staging", "siconfi", "entes.parquet")
+    linhas = json_para_parquet(raw, destino)
 
     manifest.registrar(
-        "siconfi/entes",
+        f"siconfi/entes/{coleta.isoformat()}",
         url=f"{fonte('siconfi')['api_base']}/entes",
         registros=linhas,
-        sha256=manifest.sha256_arquivo(raw_path),
+        sha256=manifest.sha256_bytes(dados),
     )
-    print(f"{linhas} entes gravados em {parquet}")
+    return destino
+
+
+def main() -> None:
+    print(f"entes gravados em {executar()}")
 
 
 if __name__ == "__main__":

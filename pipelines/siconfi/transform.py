@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import duckdb
+from pipelines.common.parquet import conectar
 
 
 def validar_minimo(itens: list[dict], *, minimo: int, contexto: str) -> list[dict]:
@@ -14,13 +14,22 @@ def validar_minimo(itens: list[dict], *, minimo: int, contexto: str) -> list[dic
     return itens
 
 
-def municipios_da_uf(entes_parquet: Path, uf: str) -> list[int]:
+def municipios_da_uf(entes_parquet: str | Path, uf: str) -> list[int]:
     """Códigos IBGE dos municípios de uma UF, a partir do parquet de entes."""
-    linhas = duckdb.sql(
-        f"""
-        SELECT cod_ibge FROM '{entes_parquet.as_posix()}'
-        WHERE esfera = 'M' AND uf = '{uf.upper()}'
-        ORDER BY cod_ibge
-        """
-    ).fetchall()
+    caminho = (
+        entes_parquet.as_posix()
+        if isinstance(entes_parquet, Path)
+        else str(entes_parquet).replace("\\", "/")
+    )
+    linhas = (
+        conectar(caminho)
+        .sql(
+            f"""
+            SELECT cod_ibge FROM '{caminho}'
+            WHERE esfera = 'M' AND uf = '{uf.upper()}'
+            ORDER BY cod_ibge
+            """
+        )
+        .fetchall()
+    )
     return [linha[0] for linha in linhas]
