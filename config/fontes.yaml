@@ -1,10 +1,17 @@
 # Fonte da verdade de URLs e parâmetros de acesso — pipelines leem daqui, nunca hardcode.
 # URLs verificadas em 2026-07-26. Governo muda URLs sem aviso: em caso de 404, atualizar AQUI.
+#
+# `sonda:` é o que o watcher vigia (pipelines/watcher/sonda.py). Precisa ser um endpoint
+# REAL, não o prefixo usado para montar URL — `api_base` cru costuma devolver 404 ou 401 e
+# encheria o canal de alarme falso. `status_ok` declara os status que significam "de pé"
+# (401 de quem exige token é resposta saudável). Fonte sem `sonda:` não é vigiada.
 
 siconfi:
   api_base: https://apidatalake.tesouro.gov.br/ords/siconfi/tt
   throttle_s: 1.0            # consenso da comunidade: ~1 req/s ou risco de bloqueio
   encoding: utf-8
+  sonda:
+    url: https://apidatalake.tesouro.gov.br/ords/siconfi/tt/entes?an_exercicio=2024
 
 cnpj_rfb:
   # compartilhamento Nextcloud da Receita; pastas mensais AAAA-MM
@@ -14,6 +21,12 @@ cnpj_rfb:
   espelho: https://dados-abertos-rf-cnpj.casadosdados.com.br/
   encoding: iso-8859-1
   separador: ";"
+  sonda:
+    url: https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9
+    # o Nextcloud embute token de sessão: o Content-Length muda a cada request
+    # (8174 → 8177 em 2 s, medido em 2026-07-26). Vigiar só disponibilidade;
+    # dump novo é detectado pelo pipeline da Fase 2, não pelo watcher.
+    detectar_mudanca: false
 
 portal_transparencia:
   api_base: https://api.portaldatransparencia.gov.br/api-de-dados
@@ -22,42 +35,68 @@ portal_transparencia:
   # guardar em variável de ambiente CGU_API_TOKEN, nunca neste arquivo
   rate_limit_dia: 90         # req/min entre 6h e 23h59
   rate_limit_madrugada: 300
+  sonda:
+    url: https://api.portaldatransparencia.gov.br/api-de-dados/despesas/documentos
+    status_ok: [200, 401]    # 401 = de pé, exigindo o header chave-api-dados
 
 pncp:
   api_base: https://pncp.gov.br/api/consulta
   max_pagina_contratos: 500
   max_pagina_contratacoes: 50
+  sonda:
+    # a raiz de /api/consulta derruba a conexão (RST); o swagger responde e
+    # traz Last-Modified, que denuncia mudança de versão da API
+    url: https://pncp.gov.br/api/consulta/swagger-ui/index.html
 
 ibge:
   api_docs: https://servicodados.ibge.gov.br/api/docs
   sidra: https://apisidra.ibge.gov.br
   censo_2022: https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/
   cnefe: https://ftp.ibge.gov.br/Cadastro_Nacional_de_Enderecos_para_Fins_Estatisticos/Censo_Demografico_2022/Arquivos_CNEFE/
+  sonda:
+    # /api/v1/localidades responde 400 a HEAD; o SIDRA responde 200 com Content-Length
+    url: https://apisidra.ibge.gov.br/values/t/6579/n6/2611101/v/9324/p/last%201
 
 tse:
   ckan_base: https://dadosabertos.tse.jus.br
   encoding: iso-8859-1
   separador: ";"
+  sonda:
+    url: https://dadosabertos.tse.jus.br/api/3/action/package_list
+    # o CKAN alterna respostas de tamanhos diferentes para a mesma consulta
+    # (20 → 982 em requests consecutivos, medido em 2026-07-26)
+    detectar_mudanca: false
 
 bcb:
   sgs_base: https://api.bcb.gov.br/dados/serie
   olinda_base: https://olinda.bcb.gov.br/olinda/servico
   janela_max_anos: 10
+  sonda:
+    # sgs_base é prefixo (404 sozinho); série 432 = Selic meta, sempre presente
+    url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json
 
 datasus:
   ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
   # preferir pysus para download + conversão DBC->parquet
+  # sem sonda: só existe por FTP (porta 443 do host dá timeout) — watcher v2
 
 rais_caged:
   ftp: ftp://ftp.mtps.gov.br/pdet/microdados/
   encoding_rais_antiga: latin-1
   encoding_novo_caged: utf-8
+  # sem sonda: só FTP; o portal pdet.mte.gov.br está com certificado TLS inválido
+  # (verificado em 2026-07-26) e não serve como substituto
 
 datajud:
   api_base: https://api-publica.datajud.cnj.jus.br
   # APIKey pública publicada em https://datajud-wiki.cnj.jus.br/api-publica/acesso
   rate_limit: 120            # req/min
+  sonda:
+    url: https://api-publica.datajud.cnj.jus.br/api_publica_tjpe/_search
+    status_ok: [200, 401]    # 401 = de pé, exigindo APIKey
 
 querido_diario:
   api_base: https://api.queridodiario.ok.org.br
   rate_limit: 60             # req/min de cortesia; exige User-Agent de navegador
+  sonda:
+    url: https://queridodiario.ok.org.br/api/gazettes?territory_ids=2611101&size=1
