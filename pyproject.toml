@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "praca-publica"
+version = "0.1.0"
+description = "Dados públicos brasileiros acessíveis: coleta, tabulação e cruzamento"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.0",
+    "requests>=2.31",
+    "PyYAML>=6.0",
+    "fsspec>=2024.6",
+    "s3fs>=2024.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+]
+
+[tool.setuptools.packages.find]
+include = ["pipelines*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: testes que tocam APIs reais (excluidos por padrao e no CI)"]
+addopts = "-m 'not live'"

@@ -1,0 +1,13 @@
+# dados nunca vão para o git — a camada raw/ é o espelho local
+data/**
+!data/**/
+!data/**/.gitkeep
+
+__pycache__/
+*.pyc
+.venv/
+*.duckdb
+*.egg-info/
+
+# credenciais nunca no git
+.env

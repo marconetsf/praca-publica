@@ -1,0 +1,63 @@
+# Fonte da verdade de URLs e parâmetros de acesso — pipelines leem daqui, nunca hardcode.
+# URLs verificadas em 2026-07-26. Governo muda URLs sem aviso: em caso de 404, atualizar AQUI.
+
+siconfi:
+  api_base: https://apidatalake.tesouro.gov.br/ords/siconfi/tt
+  throttle_s: 1.0            # consenso da comunidade: ~1 req/s ou risco de bloqueio
+  encoding: utf-8
+
+cnpj_rfb:
+  # compartilhamento Nextcloud da Receita; pastas mensais AAAA-MM
+  share_url: https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9
+  webdav_base: https://arquivos.receitafederal.gov.br/public.php/webdav
+  webdav_user: YggdBLfdninEJX9   # senha vazia
+  espelho: https://dados-abertos-rf-cnpj.casadosdados.com.br/
+  encoding: iso-8859-1
+  separador: ";"
+
+portal_transparencia:
+  api_base: https://api.portaldatransparencia.gov.br/api-de-dados
+  # token obrigatório no header 'chave-api-dados' — cadastrar em
+  # https://portaldatransparencia.gov.br/api-de-dados/cadastrar-email
+  # guardar em variável de ambiente CGU_API_TOKEN, nunca neste arquivo
+  rate_limit_dia: 90         # req/min entre 6h e 23h59
+  rate_limit_madrugada: 300
+
+pncp:
+  api_base: https://pncp.gov.br/api/consulta
+  max_pagina_contratos: 500
+  max_pagina_contratacoes: 50
+
+ibge:
+  api_docs: https://servicodados.ibge.gov.br/api/docs
+  sidra: https://apisidra.ibge.gov.br
+  censo_2022: https://ftp.ibge.gov.br/Censos/Censo_Demografico_2022/
+  cnefe: https://ftp.ibge.gov.br/Cadastro_Nacional_de_Enderecos_para_Fins_Estatisticos/Censo_Demografico_2022/Arquivos_CNEFE/
+
+tse:
+  ckan_base: https://dadosabertos.tse.jus.br
+  encoding: iso-8859-1
+  separador: ";"
+
+bcb:
+  sgs_base: https://api.bcb.gov.br/dados/serie
+  olinda_base: https://olinda.bcb.gov.br/olinda/servico
+  janela_max_anos: 10
+
+datasus:
+  ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
+  # preferir pysus para download + conversão DBC->parquet
+
+rais_caged:
+  ftp: ftp://ftp.mtps.gov.br/pdet/microdados/
+  encoding_rais_antiga: latin-1
+  encoding_novo_caged: utf-8
+
+datajud:
+  api_base: https://api-publica.datajud.cnj.jus.br
+  # APIKey pública publicada em https://datajud-wiki.cnj.jus.br/api-publica/acesso
+  rate_limit: 120            # req/min
+
+querido_diario:
+  api_base: https://api.queridodiario.ok.org.br
+  rate_limit: 60             # req/min de cortesia; exige User-Agent de navegador
