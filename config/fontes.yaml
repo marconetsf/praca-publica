@@ -105,7 +105,12 @@ snis:
   #   app4.cidades.gov.br      403 "Access Denied." (appliance na frente; não é
   #                            User-Agent — testado com UA de navegador também)
   #   dadosabertos.cidades...  403 idem, inclusive na API CKAN
-  #   dados.gov.br/api         401: passou a exigir chave de API
+  #   dados.gov.br/api         com chave: o conjunto existe (id 6fe74559-d671-
+  #                            4f59-8a06-8d823a895ba2, "SNIS - Série Histórica",
+  #                            dados de 25/04/2023) mas tem UM ÚNICO recurso,
+  #                            formato HTML, apontando para o app4.mdr.gov.br
+  #                            morto. O catálogo federal aponta para o vazio.
+  #                            SINISA: 0 conjuntos no catálogo.
   #
   # Sem sonda: 403 de WAF não distingue "fonte no ar" de "fonte apagada", então
   # vigiar isso só produziria alarme sem informação.
