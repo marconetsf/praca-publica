@@ -96,6 +96,24 @@ inep:
     - https://download.inep.gov.br/ideb/resultados/divulgacao_anos_iniciais_municipios_2023.zip
     - https://download.inep.gov.br/ideb/resultados/divulgacao_anos_finais_municipios_2023.zip
 
+snis:
+  # Situação verificada em 2026-07-27 — NENHUM caminho programático funciona hoje.
+  # O SNIS encerrou a coleta em 2023; o SINISA o sucede desde 2024. A série
+  # histórica (água/esgoto desde 1995, resíduos desde 2002) é o acervo em risco.
+  #
+  #   app4.mdr.gov.br          DNS não resolve (host do extinto MDR)
+  #   app4.cidades.gov.br      403 "Access Denied." (appliance na frente; não é
+  #                            User-Agent — testado com UA de navegador também)
+  #   dadosabertos.cidades...  403 idem, inclusive na API CKAN
+  #   dados.gov.br/api         401: passou a exigir chave de API
+  #
+  # Sem sonda: 403 de WAF não distingue "fonte no ar" de "fonte apagada", então
+  # vigiar isso só produziria alarme sem informação.
+  portal: https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/saneamento/snis
+  sinisa: https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/saneamento/sinisa
+  ckan: https://dadosabertos.cidades.gov.br/pt_PT/dataset/snis-serie-historica
+  # espelho: pendente — ver docs/ESCOPO.md M0.5.2 e a decisão registrada em FONTES.md §7
+
 datasus:
   ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
   # preferir pysus para download + conversão DBC->parquet
