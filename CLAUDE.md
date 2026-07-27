@@ -1,12 +1,16 @@
 # Praça Pública
 
 Dados públicos brasileiros → parquet → cruzamentos → site que o cidadão comum entende e compartilha.
-Fase atual: especificação concluída (26/07/2026); execução começa no marco M0 do roadmap.
+
+> ## ▶ Comece por [docs/ESTADO.md](docs/ESTADO.md)
+> Onde o projeto parou, a fila de tarefas em ordem, as pendências que dependem do usuário,
+> as decisões já tomadas e as armadilhas já encontradas. **Ler antes de qualquer trabalho.**
 
 ## Mapa dos documentos (ler antes de propor qualquer mudança)
 
 | Arquivo | O que contém | Consultar quando... |
 |---|---|---|
+| **[docs/ESTADO.md](docs/ESTADO.md)** | **Estado atual + fila de trabalho + pendências + armadilhas** | **sempre, antes de tudo** |
 | [docs/ESCOPO.md](docs/ESCOPO.md) | **Documento-mestre**: visão, princípios inegociáveis, decisões consolidadas, roadmap M0→M5 com critérios de pronto, riscos, MoSCoW, pendências do usuário | for começar qualquer tarefa — é o índice de tudo |
 | [FONTES.md](FONTES.md) | Catálogo das fontes de dados (URLs verificadas, formatos, volumes, riscos por fonte, chaves de cruzamento) | for mexer em ingestão ou adicionar fonte |
 | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) | Storage (parquet+manifesto), R2/Actions/VPS, topologia de buckets, serving, schema dos marts, custos, backup | for decidir onde/como guardar ou servir dado |
@@ -75,16 +79,9 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 
 ## Próximo trabalho
 
-Roadmap ESCOPO.md §3: **todo o código do M0 (0.1–0.7) está escrito e validado contra os
-serviços reais** — ingestão e watcher rodam no Actions e escrevem no R2 sem tocar máquina
-local. O M0 só é declarado pronto quando o watcher acumular **3 dias seguidos** de execução
-agendada (primeira linha de base: 26/07/2026).
+**→ [docs/ESTADO.md](docs/ESTADO.md)** tem o estado atual, a fila em ordem, as pendências do
+usuário, as decisões já tomadas e as armadilhas já encontradas. É lá que se atualiza o
+andamento — não aqui, para não haver duas versões da verdade.
 
-Pendências que dependem do usuário, ambas de observabilidade/segurança e nenhuma de código:
-- espelho **Backblaze B2** com Object Lock — é ele que garante a imutabilidade da raw, já que
-  o R2 não tem versionamento; sem isso um token vazado apaga a raw sem recuperação;
-- **healthchecks.io** (2 checks: ingest e watcher) — o Telegram só cobre job que falhou, não
-  job que nem rodou, e o cron do Actions pula execuções silenciosamente.
-
-Depois do M0: **M0.5 do roadmap (espelhamento defensivo), com prazo duro — onda 1 (INEP e
-SNIS) até 30/09/2026**, antes das eleições. É o marco que o watcher existe para proteger.
+Resumo de uma linha (27/07/2026): código do M0 completo e validado; falta o watcher acumular
+3 dias agendados. Onda 2 do M0.5 em curso. Prazo duro do projeto: **30/11/2026**.
