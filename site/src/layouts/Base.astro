@@ -1,14 +1,16 @@
 ---
 /**
- * Layout base. O design system do PRODUTO §3 em CSS puro: paleta Okabe-Ito
- * (segura para daltonismo), números com tabular-nums, cor nunca como único
- * canal de informação.
+ * Layout base: a casca de toda página e o único lugar com estilo global.
  *
- * A fonte especificada é Atkinson Hyperlegible Next (self-hosted). Enquanto o
- * arquivo woff2 não entra no repositório, o fallback é a pilha do sistema —
- * trocar depois é mudar uma linha.
+ * Os valores moram em `estilos/tokens.css`; aqui ficam só as regras de
+ * elemento (corpo, link, foco, tabela) e três utilitários que qualquer
+ * componente pode usar: `.numero`, `.oculto-visual` e `.hachura`.
+ *
+ * Zero JS para ler (PRODUTO §3). Nada aqui depende de script.
  */
-const { titulo, descricao } = Astro.props;
+import "../estilos/tokens.css";
+
+const { titulo, descricao, naoIndexar = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -18,77 +20,155 @@ const { titulo, descricao } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{titulo}</title>
     {descricao && <meta name="description" content={descricao} />}
+    {naoIndexar && <meta name="robots" content="noindex, follow" />}
     <meta property="og:title" content={titulo} />
     {descricao && <meta property="og:description" content={descricao} />}
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
     <style is:global>
-      :root {
-        --tinta: #1a1a2e;
-        --papel: #ffffff;
-        --primaria: #0072b2;
-        --neutra: #5b6470;
-        --positivo: #009e73;
-        --atencao: #d55e00;
-        --ausencia: #c7ccd1;
-        --borda: #e4e7eb;
-      }
-      * {
+      *,
+      *::before,
+      *::after {
         box-sizing: border-box;
       }
+
+      /* Porcentagem, não px: quem aumentou a fonte padrão do celular continua
+         mandando na escala. 106,25% = 17 px quando o navegador está no padrão. */
+      html {
+        font-size: 106.25%;
+        -webkit-text-size-adjust: 100%;
+      }
+
       body {
         margin: 0;
-        font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, sans-serif;
-        font-size: 17px;
-        line-height: 1.5;
-        color: var(--tinta);
-        background: var(--papel);
+        font-family: var(--fonte-texto);
+        font-size: var(--texto-base);
+        line-height: var(--linha-texto);
+        color: var(--cor-tinta);
+        background: var(--cor-papel);
       }
-      main {
-        max-width: 34em;
-        margin: 0 auto;
-        padding: 1rem 1rem 4rem;
+
+      /* Âncora não pode esconder o próprio título embaixo da borda da tela. */
+      :target {
+        scroll-margin-top: var(--esp-4);
       }
+
+      h1,
+      h2,
+      h3 {
+        line-height: var(--linha-titulo);
+        text-wrap: balance;
+      }
+
+      p {
+        margin: 0 0 var(--esp-4);
+      }
+
       a {
-        color: var(--primaria);
+        color: var(--cor-primaria);
       }
+      a:hover {
+        color: var(--cor-primaria-escura);
+      }
+
+      /* Foco sempre visível e sempre com folga: quem navega por teclado precisa
+         enxergar onde está, inclusive sobre fundo escuro de card. */
+      :focus-visible {
+        outline: 3px solid var(--cor-foco);
+        outline-offset: 2px;
+        border-radius: var(--raio-p);
+      }
+
+      /* Números alinham na vertical: 1.354 e 1.030 têm que ter a mesma largura,
+         senão o olho compara os dígitos errados. */
       .numero {
         font-variant-numeric: tabular-nums;
       }
+
+      /* Texto que só o leitor de tela ouve. Usado para desambiguar rótulos
+         repetidos (três "Como este número foi calculado?" na mesma página). */
+      .oculto-visual {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* A marca visual da ausência de dado. Diagonal, nunca cinza chapado:
+         chapado lê como "desativado"; hachura lê como "buraco". Acompanha
+         sempre um texto dizendo o motivo — cor e textura nunca informam sozinhas. */
+      .hachura {
+        background-image: repeating-linear-gradient(
+          45deg,
+          var(--cor-ausencia-fundo),
+          var(--cor-ausencia-fundo) 6px,
+          var(--cor-ausencia-traco) 6px,
+          var(--cor-ausencia-traco) 12px
+        );
+      }
+
+      .pular-para-conteudo {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--cor-papel);
+        color: var(--cor-primaria);
+        padding: var(--esp-3);
+        z-index: 2;
+      }
+      .pular-para-conteudo:focus {
+        left: 0;
+      }
+
       header.topo {
-        border-bottom: 1px solid var(--borda);
-        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--cor-borda);
+        padding: var(--esp-3) var(--esp-4);
       }
       header.topo a {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--alvo-toque);
         text-decoration: none;
-        font-weight: 700;
+        font-weight: var(--peso-forte);
+        color: var(--cor-tinta);
       }
-      .migalha {
-        color: var(--neutra);
-        font-size: 0.85rem;
-        margin: 0.75rem 0 0;
+
+      main {
+        max-width: var(--medida-texto);
+        margin: 0 auto;
+        padding: var(--esp-4) var(--esp-4) var(--esp-8);
       }
-      h1 {
-        font-size: 1.9rem;
-        margin: 0.25rem 0 0.25rem;
+
+      .rodape-site {
+        margin-top: var(--esp-7);
+        padding-top: var(--esp-4);
+        border-top: 1px solid var(--cor-borda);
+        color: var(--cor-neutra);
+        font-size: var(--texto-menor);
       }
-      .subtitulo {
-        color: var(--neutra);
-        margin: 0 0 1.5rem;
-      }
-      .rodape {
-        margin-top: 3rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--borda);
-        color: var(--neutra);
-        font-size: 0.85rem;
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
       }
     </style>
   </head>
   <body>
+    <a class="pular-para-conteudo" href="#conteudo">Ir direto para o conteúdo</a>
     <header class="topo"><a href="/">Praça Pública</a></header>
-    <main>
+    <main id="conteudo">
       <slot />
-      <p class="rodape">
+      <p class="rodape-site">
         Dados públicos oficiais, com fonte e data em cada número. Este é um MVP em
         construção — a cobertura ainda não é nacional.
       </p>

@@ -1,0 +1,114 @@
+---
+/**
+ * Tabela de dados.
+ *
+ * Numa tela de 360 px a tabela é o componente que mais facilmente vira lixo:
+ * ou estoura a largura e empurra a página inteira para o lado, ou encolhe a
+ * fonte até ninguém ler. Aqui ela rola sozinha dentro de um contêiner, com
+ * `role="region"` e `tabindex="0"` — que é o que permite rolar pelo teclado e
+ * faz o leitor de tela anunciar a região antes de entrar nela.
+ *
+ * A `legenda` é obrigatória e vira `<caption>`: tabela sem legenda é um monte
+ * de números sem pergunta. A primeira coluna é cabeçalho de linha (`th
+ * scope="row"`), para que o leitor de tela leia "Boa Vista, gasto com saúde,
+ * R$ 1.030" em vez de três números soltos.
+ *
+ * Props:
+ *   legenda  — o que a tabela responde
+ *   colunas  — [{ chave, rotulo, numerica? }]; `numerica` alinha à direita e
+ *              liga tabular-nums
+ *   linhas   — [{ chave: valor }], já formatados para leitura
+ *   nota     — ressalva curta abaixo da tabela (fonte, recorte, exceção)
+ */
+const { legenda, colunas = [], linhas = [], nota } = Astro.props;
+---
+
+<figure class="tabela">
+  <div class="rolagem" role="region" aria-label={legenda} tabindex="0">
+    <table>
+      <caption>{legenda}</caption>
+      <thead>
+        <tr>
+          {
+            colunas.map((c) => (
+              <th scope="col" class:list={[c.numerica && "num"]}>
+                {c.rotulo}
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+      <tbody>
+        {
+          linhas.map((linha) => (
+            <tr>
+              {colunas.map((c, i) =>
+                i === 0 ? (
+                  <th scope="row">{linha[c.chave]}</th>
+                ) : (
+                  <td class:list={[c.numerica && "num", c.numerica && "numero"]}>
+                    {linha[c.chave]}
+                  </td>
+                )
+              )}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+  {nota && <figcaption>{nota}</figcaption>}
+</figure>
+
+<style>
+  .tabela {
+    margin: 0 0 var(--esp-5);
+  }
+  .rolagem {
+    overflow-x: auto;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-m);
+  }
+  table {
+    width: 100%;
+    /* Sem largura mínima, a tabela obedece ao contêiner e espreme quatro
+       colunas em 328 px: cada célula vira uma torre de uma palavra por linha.
+       Melhor rolar para o lado — o contêiner acima já é focável para isso. */
+    min-width: 26rem;
+    border-collapse: collapse;
+    font-size: var(--texto-menor);
+  }
+  caption {
+    padding: var(--esp-3) var(--esp-4);
+    text-align: left;
+    font-weight: var(--peso-medio);
+    color: var(--cor-tinta);
+  }
+  th,
+  td {
+    padding: var(--esp-2) var(--esp-4);
+    text-align: left;
+    vertical-align: top;
+    border-top: 1px solid var(--cor-borda);
+  }
+  thead th {
+    font-size: var(--texto-mini);
+    font-weight: var(--peso-medio);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--cor-neutra);
+    white-space: nowrap;
+  }
+  tbody th {
+    font-weight: var(--peso-medio);
+  }
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  figcaption {
+    margin-top: var(--esp-2);
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>

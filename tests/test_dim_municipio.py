@@ -12,15 +12,18 @@ import pytest
 
 from pipelines.marts import dim_municipio
 
+# A API do SICONFI devolve `capital` com padding de espaços à direita — o valor
+# real é "1  " (hex 312020), não "1". A fixture reproduz isso de propósito:
+# comparar sem trim marcava as 27 capitais do país como não-capitais.
 ENTES = [
     # (cod_ibge, ente, capital, regiao, uf, esfera, populacao)
-    (1100015, "Alta Floresta D'Oeste", "0", "N", "RO", "M", 22728),
-    (1400100, "Boa Vista", "1", "N", "RR", "M", 413486),
-    (1600303, "Macapá", "1", "N", "AP", "M", 442933),
-    (2611101, "Petrolina", "0", "NE", "PE", "M", 386000),
-    (3550308, "São Paulo", "1", "SE", "SP", "M", 11451245),
-    (26, "Pernambuco", "0", "NE", "PE", "E", 9058931),  # estado: não entra
-    (1, "União", "0", "BR", "BR", "U", 203080756),  # união: não entra
+    (1100015, "Alta Floresta D'Oeste", "0  ", "N", "RO", "M", 22728),
+    (1400100, "Boa Vista", "1  ", "N", "RR", "M", 413486),
+    (1600303, "Macapá", "1  ", "N", "AP", "M", 442933),
+    (2611101, "Petrolina", "0  ", "NE", "PE", "M", 386000),
+    (3550308, "São Paulo", "1  ", "SE", "SP", "M", 11451245),
+    (26, "Pernambuco", "0  ", "NE", "PE", "E", 9058931),  # estado: não entra
+    (1, "União", "0  ", "BR", "BR", "U", 203080756),  # união: não entra
 ]
 
 
@@ -70,6 +73,12 @@ def test_capital_vira_booleano(dim):
     linhas = dict(dim.project("codigo_municipio_ibge, eh_capital").fetchall())
     assert linhas["1400100"] is True
     assert linhas["1100015"] is False
+
+
+def test_capital_sobrevive_ao_padding_da_fonte(dim):
+    """O SICONFI manda "1  ", não "1" — sem trim, as 27 capitais somem."""
+    capitais = dim.filter("eh_capital").project("codigo_municipio_ibge").fetchall()
+    assert {c[0] for c in capitais} == {"1400100", "1600303", "3550308"}
 
 
 def test_slug_sem_acento_e_com_hifen(dim):

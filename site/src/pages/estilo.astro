@@ -1,0 +1,513 @@
+---
+/**
+ * /estilo — a referência viva do design system.
+ *
+ * Não é uma galeria: é o lugar onde se confere, com dado real, se as regras do
+ * PRODUTO continuam de pé depois de cada mudança. Por isso nada aqui usa número
+ * inventado — os cards são de Boa Vista (RR), a ausência é de Guaraí (TO) e a
+ * falta de comparação é de Porto Velho (RO), exatamente como saem do pipeline.
+ *
+ * Os contrastes da paleta são calculados no build pela fórmula da WCAG 2.1, e
+ * não copiados de uma tabela: se alguém escurecer um token, o número muda aqui.
+ *
+ * `noindex`: é documentação interna, não conteúdo público.
+ */
+import Base from "../layouts/Base.astro";
+import Cabecalho from "../components/Cabecalho.astro";
+import Titulo from "../components/Titulo.astro";
+import Nota from "../components/Nota.astro";
+import Lista from "../components/Lista.astro";
+import Tabela from "../components/Tabela.astro";
+import SemDado from "../components/SemDado.astro";
+import CardIndicador from "../components/CardIndicador.astro";
+import ComoFoiCalculado from "../components/ComoFoiCalculado.astro";
+import {
+  lerMunicipio,
+  formatarReais,
+  motivoSemDado,
+  catalogoIndicadores,
+} from "../dados.js";
+
+const boaVista = lerMunicipio("1400100");
+const portoVelho = lerMunicipio("1100205");
+const guarai = lerMunicipio("1709302");
+
+const cardComparado = boaVista.indicadores.find((i) => i.comparacao);
+const cardSemComparacao = portoVelho.indicadores[0];
+const faltaEmGuarai = catalogoIndicadores().find(
+  (def) => !guarai.indicadores.some((i) => i.id === def.id)
+);
+
+/* ---- contraste WCAG 2.1, calculado no build ---------------------------- */
+function canalLinear(v) {
+  const c = v / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+function luminancia(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(canalLinear);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contraste(a, b) {
+  const [x, y] = [luminancia(a), luminancia(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+const PAPEL = "#ffffff";
+const formatarRazao = (n) => `${n.toFixed(1).replace(".", ",")}:1`;
+
+const PALETA = [
+  {
+    token: "--cor-tinta",
+    valor: "#1a1a2e",
+    uso: "Texto corrido e números. O padrão de tudo que se lê.",
+  },
+  {
+    token: "--cor-papel",
+    valor: "#ffffff",
+    uso: "Fundo da página.",
+  },
+  {
+    token: "--cor-papel-suave",
+    valor: "#f5f7f9",
+    uso: "Fundo de bloco em destaque: “Em resumo”, corpo do “como foi calculado”.",
+  },
+  {
+    token: "--cor-primaria",
+    valor: "#0072b2",
+    uso: "Link, foco e barra de destaque. Nunca para dizer “bom”.",
+  },
+  {
+    token: "--cor-primaria-escura",
+    valor: "#005a8d",
+    uso: "Link sobre fundo suave e estado :hover.",
+  },
+  {
+    token: "--cor-neutra",
+    valor: "#5b6470",
+    uso: "Texto secundário: rótulo, proveniência, legenda.",
+  },
+  {
+    token: "--cor-positivo",
+    valor: "#009e73",
+    uso: "Só preenchimento/borda, e só em indicador com direção pactuada.",
+  },
+  {
+    token: "--cor-positivo-texto",
+    valor: "#006b4f",
+    uso: "O mesmo verde quando precisa virar texto.",
+  },
+  {
+    token: "--cor-atencao",
+    valor: "#d55e00",
+    uso: "Aviso — laranja, nunca vermelho puro. Só preenchimento/borda.",
+  },
+  {
+    token: "--cor-atencao-texto",
+    valor: "#a34700",
+    uso: "O mesmo laranja quando precisa virar texto.",
+  },
+  {
+    token: "--cor-ausencia",
+    valor: "#c7ccd1",
+    uso: "Borda e traço da hachura de “sem dado”. Nunca em texto.",
+  },
+  {
+    token: "--cor-borda",
+    valor: "#e4e7eb",
+    uso: "Borda de card e separador. Só estrutura, nunca semântica.",
+  },
+  {
+    token: "--cor-borda-forte",
+    valor: "#767f8a",
+    uso: "Borda de campo e botão (piso de 3:1 para componente).",
+  },
+].map((c) => ({ ...c, razao: contraste(c.valor, PAPEL) }));
+
+const TIPOGRAFIA = [
+  { token: "--texto-destaque", tamanho: "2,25rem ≈ 38px", uso: "o número do card" },
+  { token: "--texto-t1", tamanho: "1,875rem ≈ 32px", uso: "h1, o nome do município" },
+  { token: "--texto-t2", tamanho: "1,5rem ≈ 26px", uso: "título de seção" },
+  { token: "--texto-t3", tamanho: "1,25rem ≈ 21px", uso: "título de card" },
+  { token: "--texto-medio", tamanho: "1,125rem ≈ 19px", uso: "linha de apoio, resumo" },
+  { token: "--texto-base", tamanho: "1rem ≈ 17px", uso: "texto corrido" },
+  { token: "--texto-menor", tamanho: "0,875rem ≈ 15px", uso: "descrição, nota, tabela" },
+  { token: "--texto-mini", tamanho: "0,75rem ≈ 13px", uso: "proveniência e rodapé" },
+];
+
+const ESPACO = [
+  { token: "--esp-1", valor: "0,25rem", uso: "entre um rótulo e o que ele rotula" },
+  { token: "--esp-2", valor: "0,5rem", uso: "entre partes de um mesmo componente" },
+  { token: "--esp-3", valor: "0,75rem", uso: "padding interno apertado" },
+  { token: "--esp-4", valor: "1rem", uso: "padding de card, margem de parágrafo" },
+  { token: "--esp-5", valor: "1,5rem", uso: "entre componentes irmãos" },
+  { token: "--esp-6", valor: "2rem", uso: "entre blocos de assunto diferente" },
+  { token: "--esp-7", valor: "3rem", uso: "entre seções da página" },
+  { token: "--esp-8", valor: "4rem", uso: "respiro do fim da página" },
+];
+
+const RAIOS = [
+  { token: "--raio-nenhum", valor: "0", uso: "separador colado na borda da tela" },
+  { token: "--raio-p", valor: "6px", uso: "campo, botão, nota" },
+  { token: "--raio-m", valor: "10px", uso: "card — o raio padrão" },
+  { token: "--raio-g", valor: "16px", uso: "bloco grande que agrupa cards" },
+  { token: "--raio-pilula", valor: "999px", uso: "selo curto, marcador, barra" },
+];
+
+const linhasTabela = boaVista.indicadores.map((i) => ({
+  indicador: i.nome,
+  valor: formatarReais(i.valor),
+  mediana: i.comparacao ? formatarReais(i.comparacao.mediana_parecidos) : "sem dado",
+  // Curto na célula, explicado na nota: coluna com frase inteira transforma a
+  // tabela numa parede de texto em 360 px.
+  posicao: i.comparacao ? `${i.comparacao.posicao}º de ${i.comparacao.n_parecidos}` : "—",
+}));
+---
+
+<Base
+  titulo="Design system — Praça Pública"
+  descricao="Referência viva dos tokens e componentes do site, com dado real."
+  naoIndexar
+>
+  <Cabecalho
+    titulo="Design system"
+    apoio="Tokens e componentes, com dado real de Boa Vista (RR)"
+    migalha={[{ texto: "Praça Pública", href: "/" }, { texto: "Design system" }]}
+  />
+
+  <Nota tipo="info" titulo="Como usar esta página">
+    <p>
+      Tudo aqui sai do mesmo JSON que alimenta as páginas de município. Se um número
+      desta página parecer errado, o erro está no dado ou no componente — nunca num
+      exemplo escrito à mão, porque não existe nenhum.
+    </p>
+  </Nota>
+
+  <!-- ============================= COR ============================= -->
+  <section aria-labelledby="cor">
+    <Titulo nivel={2} id="cor" ancora>Cor</Titulo>
+    <p>
+      Paleta Okabe-Ito, segura para as formas comuns de daltonismo. O contraste ao
+      lado é contra o papel branco, calculado no build. Piso do projeto:
+      <strong>4,5:1</strong> para texto e <strong>3:1</strong> para componente.
+      Token que não alcança 4,5:1 tem irmão escurecido — e nenhum deles informa sozinho.
+    </p>
+
+    <ul class="paleta">
+      {
+        PALETA.map((c) => (
+          <li>
+            <span class="amostra" style={`background:${c.valor}`} aria-hidden="true" />
+            <span class="dados">
+              <code>{c.token}</code>
+              <span class="valor numero">{c.valor}</span>
+              <span class="razao numero">
+                {formatarRazao(c.razao)}
+                <span class="selo-contraste">
+                  {c.razao >= 4.5 ? "texto ok" : c.razao >= 3 ? "só componente" : "só fundo"}
+                </span>
+              </span>
+              <span class="uso">{c.uso}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- ========================== TIPOGRAFIA ========================== -->
+  <section aria-labelledby="tipografia">
+    <Titulo nivel={2} id="tipografia" ancora>Tipografia</Titulo>
+    <p>
+      Atkinson Hyperlegible Next (desenhada para baixa visão), com a pilha do sistema
+      como reserva enquanto o arquivo da fonte não entra no repositório. A raiz é
+      106,25% — porcentagem, não pixel, para respeitar quem aumentou a fonte do celular.
+      Números sempre em <span class="numero">tabular-nums</span>: 1.030 e 1.354 precisam
+      ter a mesma largura para o olho comparar os dígitos certos.
+    </p>
+    <ul class="tipos">
+      {
+        TIPOGRAFIA.map((t) => (
+          <li>
+            <span class="exemplo" style={`font-size:var(${t.token})`}>
+              R$ 1.354
+            </span>
+            <span class="meta">
+              <code>{t.token}</code> — {t.tamanho} · {t.uso}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- ========================== ESPAÇAMENTO ========================= -->
+  <section aria-labelledby="espacamento">
+    <Titulo nivel={2} id="espacamento" ancora>Espaçamento, raio e sombra</Titulo>
+    <p>
+      Escala de 0,25rem. Só os degraus abaixo — valor fora da escala é bug, não gosto.
+    </p>
+    <ul class="espacos">
+      {
+        ESPACO.map((e) => (
+          <li>
+            <span class="barra" style={`width:var(${e.token})`} aria-hidden="true" />
+            <code>{e.token}</code>
+            <span class="meta">
+              {e.valor} · {e.uso}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <Titulo nivel={3} tamanho={4}>Raio</Titulo>
+    <ul class="raios">
+      {
+        RAIOS.map((r) => (
+          <li>
+            <span class="caixa" style={`border-radius:var(${r.token})`} aria-hidden="true" />
+            <code>{r.token}</code>
+            <span class="meta">
+              {r.valor} · {r.uso}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <Titulo nivel={3} tamanho={4}>Sombra</Titulo>
+    <p class="obs">
+      O site é plano de propósito: hierarquia se faz com espaço e borda. Sombra custa
+      pintura em celular de entrada e desaparece no sol. Card usa
+      <code>--sombra-nenhuma</code>; <code>--sombra-leve</code> é só para o que se
+      sobrepõe ao conteúdo (barra fixa), e <code>--sombra-media</code> para camada
+      realmente flutuante.
+    </p>
+    <div class="sombras">
+      <span class="caixa-sombra" style="box-shadow:var(--sombra-nenhuma)">nenhuma</span>
+      <span class="caixa-sombra" style="box-shadow:var(--sombra-leve)">leve</span>
+      <span class="caixa-sombra" style="box-shadow:var(--sombra-media)">média</span>
+    </div>
+  </section>
+
+  <!-- ========================== COMPONENTES ========================= -->
+  <section aria-labelledby="componentes">
+    <Titulo nivel={2} id="componentes" ancora>Componentes</Titulo>
+
+    <Titulo nivel={3} tamanho={4}>Cabeçalho</Titulo>
+    <p class="obs">
+      O topo desta página é o próprio componente: caminho, título e linha de apoio.
+      Um <code>h1</code> por página — por isso ele não aparece duplicado aqui.
+    </p>
+
+    <Titulo nivel={3} tamanho={4}>Título</Titulo>
+    <p class="obs">
+      Nível semântico e tamanho visual são props separadas: um <code>h3</code> pode ter
+      corpo de <code>h4</code> sem quebrar a ordem que o leitor de tela percorre.
+    </p>
+
+    <Titulo nivel={3} tamanho={4}>Nota</Titulo>
+    <Nota tipo="info" titulo="Observação">
+      <p>Contexto que muda a leitura de um número. Borda azul, ícone redondo.</p>
+    </Nota>
+    <Nota tipo="atencao" titulo="Atenção">
+      <p>
+        Limitação conhecida, defasagem, recorte. Laranja — nunca vermelho, que lê como
+        culpa de alguém.
+      </p>
+    </Nota>
+    <Nota tipo="ausencia" titulo="Sem dado">
+      <p>Hachura diagonal. Para falta de dado dentro de um texto corrido.</p>
+    </Nota>
+
+    <Titulo nivel={3} tamanho={4}>Lista</Titulo>
+    <p class="obs">Variante “resumo” — as frases que viram print de WhatsApp:</p>
+    <Lista
+      variante="resumo"
+      itens={[
+        `${cardComparado.nome}: ${formatarReais(cardComparado.valor)} em ${cardComparado.ano_referencia}.`,
+        `Mediana das cidades parecidas: ${formatarReais(cardComparado.comparacao.mediana_parecidos)}.`,
+      ]}
+    />
+    <p class="obs">Variante “links” — alvo de toque de 44 px, uma a três colunas:</p>
+    <Lista
+      variante="links"
+      rotulo="Exemplos de municípios"
+      itens={[
+        { texto: "Boa Vista", href: "/municipio/rr/boa-vista", apoio: "RR" },
+        { texto: "Porto Velho", href: "/municipio/ro/porto-velho", apoio: "RO" },
+        { texto: "Guaraí", href: "/municipio/to/guarai", apoio: "TO" },
+      ]}
+    />
+
+    <Titulo nivel={3} tamanho={4}>Tabela</Titulo>
+    <Tabela
+      legenda={`Os três indicadores de ${boaVista.nome} (${boaVista.uf}), ${boaVista.ano_referencia}`}
+      colunas={[
+        { chave: "indicador", rotulo: "Indicador" },
+        { chave: "valor", rotulo: "Valor", numerica: true },
+        { chave: "mediana", rotulo: "Mediana das parecidas", numerica: true },
+        { chave: "posicao", rotulo: "Posição", numerica: true },
+      ]}
+      linhas={linhasTabela}
+      nota={`Posição = do maior valor para o menor, entre as cidades parecidas; não é classificação de qualidade. Fonte: SICONFI/DCA · dados de ${boaVista.ano_referencia} · coletado em ${boaVista.coletado_em.split("-").reverse().join("/")}. Em tela estreita a tabela rola para o lado.`}
+    />
+
+    <Titulo nivel={3} tamanho={4}>Estado de ausência</Titulo>
+    <p class="obs">
+      Card inteiro, no lugar exato onde estaria o número. Exemplo real: {guarai.nome} ({guarai.uf})
+      não tem o indicador de impostos em {guarai.ano_referencia}.
+    </p>
+    <SemDado
+      titulo={faltaEmGuarai.nome}
+      nivel={4}
+      fonte={`${faltaEmGuarai.orgao} (${faltaEmGuarai.fonte})`}
+    >
+      <p>{motivoSemDado(guarai.nome, guarai.ano_referencia, faltaEmGuarai.orgao)}</p>
+    </SemDado>
+    <p class="obs">Versão compacta, para usar dentro de outro componente:</p>
+    <SemDado compacto>
+      <p>
+        Ainda não dá para comparar: o grupo de cidades parecidas tem menos de 5
+        municípios com este dado publicado.
+      </p>
+    </SemDado>
+
+    <Titulo nivel={3} tamanho={4}>Card de indicador</Titulo>
+    <p class="obs">Com comparação — {boaVista.nome} ({boaVista.uf}):</p>
+    <CardIndicador indicador={cardComparado} nomeMunicipio={boaVista.nome} nivel={4} />
+    <p class="obs">
+      Sem comparação — {portoVelho.nome} ({portoVelho.uf}) está no grupo “Norte acima de
+      500 mil habitantes”, que tem menos de 5 municípios:
+    </p>
+    <CardIndicador
+      indicador={cardSemComparacao}
+      nomeMunicipio={portoVelho.nome}
+      nivel={4}
+    />
+
+    <Titulo nivel={3} tamanho={4}>Como foi calculado</Titulo>
+    <p class="obs">
+      Isolado do card. Abre e fecha sem uma linha de JavaScript — é
+      <code>&lt;details&gt;</code>, então funciona com script desligado, responde ao
+      teclado e é encontrado pelo Ctrl+F do navegador.
+    </p>
+    <ComoFoiCalculado procedencia={cardComparado.procedencia} nome={cardComparado.nome} />
+  </section>
+</Base>
+
+<style>
+  section {
+    margin-bottom: var(--esp-7);
+  }
+  .obs {
+    font-size: var(--texto-menor);
+    color: var(--cor-neutra);
+  }
+  code {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: var(--texto-mini);
+    background: var(--cor-papel-suave);
+    padding: 0.1em 0.3em;
+    border-radius: var(--raio-p);
+  }
+
+  .paleta,
+  .tipos,
+  .espacos,
+  .raios {
+    list-style: none;
+    margin: 0 0 var(--esp-5);
+    padding: 0;
+  }
+  .paleta li {
+    display: flex;
+    gap: var(--esp-3);
+    padding: var(--esp-3) 0;
+    border-top: 1px solid var(--cor-borda);
+  }
+  .amostra {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--cor-borda-forte);
+    border-radius: var(--raio-p);
+  }
+  .dados {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--esp-1) var(--esp-2);
+    min-width: 0;
+  }
+  .dados .valor,
+  .dados .razao {
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+  .selo-contraste {
+    margin-left: var(--esp-1);
+    padding: 0.1em 0.4em;
+    border: 1px solid var(--cor-borda-forte);
+    border-radius: var(--raio-pilula);
+    font-size: var(--texto-mini);
+  }
+  .uso {
+    flex: 1 0 100%;
+    font-size: var(--texto-menor);
+  }
+
+  .tipos li {
+    padding: var(--esp-2) 0;
+    border-top: 1px solid var(--cor-borda);
+  }
+  .exemplo {
+    display: block;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+  .meta {
+    display: block;
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+
+  .espacos li,
+  .raios li {
+    display: flex;
+    align-items: center;
+    gap: var(--esp-2);
+    padding: var(--esp-2) 0;
+    border-top: 1px solid var(--cor-borda);
+    flex-wrap: wrap;
+  }
+  .espacos .barra {
+    height: 1rem;
+    min-width: 2px;
+    background: var(--cor-primaria);
+    border-radius: var(--raio-pilula);
+  }
+  .raios .caixa {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: var(--cor-papel-suave);
+    border: 2px solid var(--cor-neutra);
+  }
+  .sombras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--esp-4);
+    margin-bottom: var(--esp-5);
+  }
+  .caixa-sombra {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 6rem;
+    height: 3.5rem;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-m);
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>

@@ -82,7 +82,10 @@ def construir(entes_parquet, destino) -> int:
                 'siconfi/entes' AS fonte_populacao,
                 {_sql_faixa("e.populacao")} AS faixa_porte,
                 e.regiao || '|' || {_sql_faixa("e.populacao")} AS grupo_comparacao,
-                e.capital = '1' AS eh_capital
+                -- trim obrigatório: a API do SICONFI devolve "1  " com padding de
+                -- espaços (hex 312020). Sem ele, as 27 capitais do país entram
+                -- como não-capitais e o rótulo nunca aparece na página.
+                trim(e.capital) = '1' AS eh_capital
             FROM '{origem}' e
             JOIN slugs s ON s.codigo_municipio_ibge = lpad(CAST(e.cod_ibge AS VARCHAR), 7, '0')
             WHERE e.esfera = 'M'

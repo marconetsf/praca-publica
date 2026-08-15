@@ -3,64 +3,103 @@
  * A home é a busca (PRODUTO §1). No MVP a lista inteira cabe na página, então a
  * filtragem é feita sobre o DOM já renderizado — sem fetch, sem índice separado.
  * Quando a cobertura virar nacional, isto passa a consumir `busca.json`.
+ *
+ * O campo de busca é a única ilha de JS do site, e é enfeite: com JavaScript
+ * desligado a lista continua inteira na página, agrupada por estado e navegável.
  */
 import Base from "../layouts/Base.astro";
-import { lerIndice } from "../dados.js";
+import Cabecalho from "../components/Cabecalho.astro";
+import Titulo from "../components/Titulo.astro";
+import Lista from "../components/Lista.astro";
+import Nota from "../components/Nota.astro";
+import { lerIndice, lerMunicipio, formatarNumero, nomeUf } from "../dados.js";
 
 const municipios = lerIndice();
 const porUf = municipios.reduce((acc, m) => {
   (acc[m.uf] ??= []).push(m);
   return acc;
 }, {});
+const ufs = Object.keys(porUf).sort();
+
+// O ano de referência não está no índice; vem do primeiro município, que é o
+// mesmo lote gerado pelo serving. Nada aqui é escrito à mão.
+const { ano_referencia: ano } = lerMunicipio(municipios[0].codigo_ibge);
 ---
 
 <Base
   titulo="Praça Pública — os dados da sua cidade em linguagem simples"
   descricao="Orçamento, saúde e educação do seu município, com fonte e data em cada número."
 >
-  <h1>Os dados da sua cidade</h1>
-  <p class="subtitulo">
-    Orçamento da prefeitura em linguagem simples, comparado com cidades parecidas.
-    {municipios.length} municípios disponíveis nesta versão.
+  <Cabecalho
+    titulo="Os dados da sua cidade"
+    apoio={`${formatarNumero(municipios.length)} municípios nesta versão · dados de ${ano}`}
+  />
+
+  <p class="chamada">
+    Quanto a prefeitura gasta com saúde e educação, e quanto arrecada de impostos —
+    em linguagem simples, comparado com cidades parecidas, com a fonte de cada número.
   </p>
 
-  <label class="busca">
-    <span class="rotulo">Buscar município</span>
-    <input id="busca" type="search" placeholder="Digite o nome da cidade" autocomplete="off" />
-  </label>
+  <form class="busca" role="search" action="#lista-de-cidades">
+    <label class="rotulo" for="busca">Buscar município pelo nome</label>
+    <input
+      id="busca"
+      name="busca"
+      type="search"
+      placeholder="Ex.: Boa Vista"
+      autocomplete="off"
+      enterkeyhint="search"
+    />
+    <p class="dica">
+      Digite para filtrar a lista abaixo. Sem JavaScript, a lista continua toda aqui.
+    </p>
+  </form>
+
+  <Nota tipo="atencao" titulo="Ainda não é o Brasil inteiro">
+    <p>
+      Esta versão traz {formatarNumero(municipios.length)} dos 5.570 municípios do país,
+      e só o bloco de dinheiro da prefeitura. Cidade que não está aqui ainda não foi
+      processada — não quer dizer que ela não tenha enviado dados.
+    </p>
+  </Nota>
+
+  <h2 class="oculto-visual" id="lista-de-cidades">Municípios disponíveis, por estado</h2>
 
   {
-    Object.keys(porUf)
-      .sort()
-      .map((uf) => (
-        <section class="uf">
-          <h2>{uf}</h2>
-          <ul>
-            {porUf[uf].map((m) => (
-              <li data-nome={m.nome.toLowerCase()}>
-                <a href={`/municipio/${uf.toLowerCase()}/${m.slug}`}>{m.nome}</a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))
+    ufs.map((uf) => (
+      <section class="uf" aria-labelledby={`uf-${uf.toLowerCase()}`}>
+        <Titulo nivel={3} tamanho={4} id={`uf-${uf.toLowerCase()}`}>
+          {nomeUf(uf)} ({uf}) — {porUf[uf].length}{" "}
+          {porUf[uf].length === 1 ? "município" : "municípios"}
+        </Titulo>
+        <Lista
+          variante="links"
+          itens={porUf[uf].map((m) => ({
+            texto: m.nome,
+            href: `/municipio/${uf.toLowerCase()}/${m.slug}`,
+            atributos: { "data-nome": m.nome.toLowerCase() },
+          }))}
+        />
+      </section>
+    ))
   }
 </Base>
 
 <script>
   // A única ilha de JS do MVP: filtra o que já está na página. Sem ele, a lista
-  // continua navegável — o site é legível com JS desligado.
+  // continua navegável — o site é legível com JavaScript desligado.
   const campo = document.getElementById("busca");
   const itens = [...document.querySelectorAll("li[data-nome]")];
   const secoes = [...document.querySelectorAll("section.uf")];
 
+  const semAcento = (texto) => texto.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+  campo?.closest("form")?.addEventListener("submit", (evento) => evento.preventDefault());
+
   campo?.addEventListener("input", () => {
-    const termo = campo.value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "");
+    const termo = semAcento(campo.value.toLowerCase()).trim();
     for (const item of itens) {
-      const nome = item.dataset.nome.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const nome = semAcento(item.dataset.nome);
       item.hidden = termo.length > 0 && !nome.includes(termo);
     }
     for (const secao of secoes) {
@@ -71,38 +110,36 @@ const porUf = municipios.reduce((acc, m) => {
 </script>
 
 <style>
+  .chamada {
+    font-size: var(--texto-medio);
+    margin-bottom: var(--esp-5);
+  }
   .busca {
-    display: block;
-    margin-bottom: 2rem;
+    margin-bottom: var(--esp-5);
   }
   .rotulo {
     display: block;
-    font-size: 0.85rem;
-    color: var(--neutra);
-    margin-bottom: 0.25rem;
+    font-size: var(--texto-menor);
+    font-weight: var(--peso-medio);
+    margin-bottom: var(--esp-1);
   }
   input {
     width: 100%;
-    padding: 0.7rem;
-    font-size: 1rem;
-    border: 1px solid var(--borda);
-    border-radius: 8px;
+    min-height: var(--alvo-toque);
+    padding: var(--esp-2) var(--esp-3);
+    font-family: inherit;
+    font-size: var(--texto-base);
+    color: var(--cor-tinta);
+    background: var(--cor-papel);
+    border: 1px solid var(--cor-borda-forte);
+    border-radius: var(--raio-p);
   }
-  input:focus {
-    outline: 2px solid var(--primaria);
-    outline-offset: 1px;
+  .dica {
+    margin: var(--esp-1) 0 0;
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
   }
-  .uf h2 {
-    font-size: 0.9rem;
-    color: var(--neutra);
-    border-bottom: 1px solid var(--borda);
-    padding-bottom: 0.25rem;
-  }
-  .uf ul {
-    list-style: none;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-    gap: 0.35rem;
+  .uf {
+    margin-bottom: var(--esp-5);
   }
 </style>

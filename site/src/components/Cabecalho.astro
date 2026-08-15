@@ -1,0 +1,76 @@
+---
+/**
+ * Cabeçalho da página: caminho, título e a linha de apoio.
+ *
+ * É a primeira dobra de quem chegou por link no WhatsApp. Em 5 segundos ela
+ * precisa responder "isto é da minha cidade?" — por isso o nome do município é
+ * o maior elemento da tela e o caminho vem antes, curto, para situar sem roubar
+ * espaço.
+ *
+ * `migalha`: [{ texto, href? }]. Só o **último** item recebe `aria-current`:
+ * é ele a página atual. Marcar todo item sem link (o estado, por exemplo, que
+ * ainda não tem página) faria o leitor de tela anunciar duas "páginas atuais".
+ */
+const { titulo, apoio, migalha = [] } = Astro.props;
+---
+
+<header class="cabecalho">
+  {
+    migalha.length > 0 && (
+      <nav class="migalha" aria-label="Você está aqui">
+        <ol>
+          {migalha.map((item, i) => (
+            <li>
+              {i > 0 && (
+                <span class="separador" aria-hidden="true">
+                  ›
+                </span>
+              )}
+              {item.href ? (
+                <a href={item.href}>{item.texto}</a>
+              ) : (
+                <span aria-current={i === migalha.length - 1 ? "page" : undefined}>
+                  {item.texto}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
+  }
+  <h1>{titulo}</h1>
+  {apoio && <p class="apoio numero">{apoio}</p>}
+  <slot />
+</header>
+
+<style>
+  .cabecalho {
+    margin-bottom: var(--esp-6);
+  }
+  .migalha {
+    margin-bottom: var(--esp-2);
+  }
+  .migalha ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--texto-menor);
+    color: var(--cor-neutra);
+  }
+  .migalha li {
+    display: inline;
+  }
+  .separador {
+    padding: 0 var(--esp-1);
+  }
+  h1 {
+    font-size: var(--texto-t1);
+    margin: 0 0 var(--esp-1);
+  }
+  .apoio {
+    margin: 0;
+    font-size: var(--texto-medio);
+    color: var(--cor-neutra);
+  }
+</style>

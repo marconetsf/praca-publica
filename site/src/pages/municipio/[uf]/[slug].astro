@@ -4,15 +4,28 @@
  *
  * Slug por UF porque nome de município não é único no país: "bom-jesus" existe
  * em 5 estados. O código IBGE fica no rodapé, nunca na URL principal.
+ *
+ * A página percorre o **catálogo** de indicadores, não a lista do município: é
+ * assim que o card que falta aparece como falta, em vez de sumir. Uma cidade
+ * sem o dado de impostos precisa mostrar que o dado não existe — isso também é
+ * informação pública, e é a regra de ferro do PRODUTO §2.5.
  */
 import Base from "../../../layouts/Base.astro";
+import Cabecalho from "../../../components/Cabecalho.astro";
+import Titulo from "../../../components/Titulo.astro";
+import Lista from "../../../components/Lista.astro";
 import CardIndicador from "../../../components/CardIndicador.astro";
+import SemDado from "../../../components/SemDado.astro";
 import {
   lerIndice,
   lerMunicipio,
+  catalogoIndicadores,
   formatarNumero,
   formatarReais,
-  rotuloComparacao,
+  classificarComparacao,
+  FRASE_RESUMO,
+  nomeUf,
+  motivoSemDado,
 } from "../../../dados.js";
 
 export function getStaticPaths() {
@@ -24,88 +37,117 @@ export function getStaticPaths() {
 
 const { codigoIbge } = Astro.props;
 const m = lerMunicipio(codigoIbge);
+const estado = nomeUf(m.uf);
 
 const titulo = `${m.nome} (${m.uf}): para onde vai o dinheiro — Praça Pública`;
 const descricao =
   `Veja em linguagem simples os dados públicos de ${m.nome} (${m.uf}): ` +
   `orçamento e arrecadação. Fonte: SICONFI/Tesouro Nacional, dados de ${m.ano_referencia}.`;
 
-// "Em resumo": as 3 frases que aparecem no print de WhatsApp. Uma delas pode ser
+// O catálogo dá a ordem; o município diz o que tem. O que ele não tem vira
+// card de ausência, na mesma posição em que estaria o número.
+const publicados = new Map(m.indicadores.map((i) => [i.id, i]));
+const blocos = catalogoIndicadores().map((def) => ({
+  definicao: def,
+  indicador: publicados.get(def.id) ?? null,
+}));
+const faltantes = blocos.filter((b) => !b.indicador);
+
+// "Em resumo": as frases que aparecem no print de WhatsApp. Uma delas pode ser
 // uma lacuna de dado — transparência ativa, não omissão (PRODUTO §2 regra 1).
 const comComparacao = m.indicadores.filter((i) => i.comparacao);
 const semComparacao = m.indicadores.filter((i) => !i.comparacao);
-// Usa a MESMA função do card: comparação binária aqui produzia "menos que o
-// típico" para um valor idêntico à mediana, contradizendo o card logo abaixo.
-const FRASE = {
-  "acima dos parecidos": "mais que o típico das parecidas",
-  "abaixo dos parecidos": "menos que o típico das parecidas",
-  "na média dos parecidos": "o mesmo que o típico das parecidas",
-};
+
+// Usa a MESMA classificação do card: comparação binária aqui produzia "menos
+// que o típico" para um valor idêntico à mediana, contradizendo o card abaixo.
 const resumo = comComparacao.slice(0, 2).map((i) => {
-  const rotulo = rotuloComparacao(i.valor, i.comparacao);
+  const classe = classificarComparacao(i.valor, i.comparacao);
   return (
-    `${i.nome}: ${formatarReais(i.valor)} por ano — ` +
-    `${FRASE[rotulo]} (${formatarReais(i.comparacao.mediana_parecidos)}).`
+    `${i.nome}: ${formatarReais(i.valor)} em ${i.ano_referencia} — ` +
+    `${FRASE_RESUMO[classe]} (mediana ${formatarReais(i.comparacao.mediana_parecidos)}).`
   );
 });
-if (semComparacao.length) {
+
+// Cidade cujo grupo é pequeno demais (Porto Velho está entre as 4 do Norte
+// acima de 500 mil) ficaria com um resumo sem nenhum número — justamente o
+// bloco que vira print. Então entram os valores, com a falta de referência dita
+// na mesma frase: número sem régua, mas com o aviso colado nele.
+const preenchidos = semComparacao.slice(0, Math.max(0, 2 - resumo.length));
+for (const i of preenchidos) {
   resumo.push(
-    `Ainda não dá para comparar ${semComparacao.length === 1 ? "1 indicador" : `${semComparacao.length} indicadores`}: ` +
-      "há menos de 5 cidades parecidas com dado publicado."
+    `${i.nome}: ${formatarReais(i.valor)} em ${i.ano_referencia} — ainda sem comparação, ` +
+      "porque o grupo de cidades parecidas tem menos de 5 com este dado publicado."
   );
 }
+
+for (const bloco of faltantes) {
+  resumo.push(
+    `Sem dado de "${bloco.definicao.nome}" em ${m.ano_referencia}: ou a prefeitura ` +
+      "não declarou ao Tesouro Nacional, ou o valor declarado era impossível."
+  );
+}
+
+if (semComparacao.length && preenchidos.length === 0) {
+  resumo.push(
+    semComparacao.length === 1
+      ? "Um dos números ainda não tem comparação: o grupo de cidades parecidas tem menos de 5 com dado publicado."
+      : `${semComparacao.length} números ainda não têm comparação: o grupo de cidades parecidas tem menos de 5 com dado publicado.`
+  );
+}
+
+const migalha = [{ texto: "Brasil", href: "/" }, { texto: estado }, { texto: m.nome }];
+const apoio =
+  `${formatarNumero(m.populacao)} habitantes · ${estado}` +
+  (m.eh_capital ? " · capital do estado" : "");
 ---
 
 <Base titulo={titulo} descricao={descricao}>
-  <p class="migalha">Brasil › {m.uf} › {m.nome}</p>
-  <h1>{m.nome} — {m.uf}</h1>
-  <p class="subtitulo numero">
-    {formatarNumero(m.populacao)} habitantes{m.eh_capital ? " · capital" : ""}
-  </p>
+  <Cabecalho titulo={`${m.nome} — ${m.uf}`} apoio={apoio} migalha={migalha} />
 
-  <section class="resumo">
-    <h2>Em resumo</h2>
-    <ul>
-      {resumo.map((frase) => <li>{frase}</li>)}
-    </ul>
+  <section class="resumo" aria-labelledby="em-resumo">
+    <Titulo nivel={2} tamanho={3} id="em-resumo">Em resumo</Titulo>
+    <Lista variante="resumo" itens={resumo} />
   </section>
 
-  <h2>Dinheiro da prefeitura</h2>
-  {m.indicadores.map((indicador) => <CardIndicador indicador={indicador} />)}
+  <section aria-labelledby="dinheiro">
+    <Titulo nivel={2} id="dinheiro" ancora>Dinheiro da prefeitura</Titulo>
+    {
+      blocos.map(({ definicao, indicador }) =>
+        indicador ? (
+          <CardIndicador indicador={indicador} nomeMunicipio={m.nome} />
+        ) : (
+          <SemDado titulo={definicao.nome} fonte={`${definicao.orgao} (${definicao.fonte})`}>
+            <p>{motivoSemDado(m.nome, m.ano_referencia, definicao.orgao)}</p>
+            <p class="explica">{definicao.descricao}</p>
+          </SemDado>
+        )
+      )
+    }
+  </section>
 
-  <p class="identificacao">
+  <p class="identificacao numero">
     Código IBGE {m.codigo_ibge} · dados de {m.ano_referencia} ·
-    <a href={`/dados/municipio/${m.codigo_ibge}.json`}>baixar JSON</a>
+    <a href={`/dados/municipio/${m.codigo_ibge}.json`}>baixar os dados desta página</a>
   </p>
 </Base>
 
 <style>
+  /* O resumo é o bloco que vira print: fundo suave e barra à esquerda para se
+     destacar sem virar caixa colorida, que numa tela pequena rouba o número. */
   .resumo {
-    background: #f5f9fc;
-    border-left: 3px solid var(--primaria);
-    padding: 0.75rem 1rem;
-    margin-bottom: 2rem;
+    background: var(--cor-papel-suave);
+    border-left: 4px solid var(--cor-primaria);
+    border-radius: 0 var(--raio-p) var(--raio-p) 0;
+    padding: var(--esp-4);
+    margin-bottom: var(--esp-6);
   }
-  .resumo h2 {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--neutra);
-    margin: 0 0 0.5rem;
-  }
-  .resumo ul {
-    margin: 0;
-    padding-left: 1.1rem;
-  }
-  .resumo li {
-    margin-bottom: 0.4rem;
-  }
-  h2 {
-    font-size: 1.2rem;
-    margin: 2rem 0 1rem;
+  .explica {
+    color: var(--cor-neutra);
+    font-size: var(--texto-menor);
   }
   .identificacao {
-    font-size: 0.8rem;
-    color: var(--neutra);
+    margin-top: var(--esp-6);
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
   }
 </style>
