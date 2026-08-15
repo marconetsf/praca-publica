@@ -1,0 +1,97 @@
+---
+/**
+ * Layout base. O design system do PRODUTO §3 em CSS puro: paleta Okabe-Ito
+ * (segura para daltonismo), números com tabular-nums, cor nunca como único
+ * canal de informação.
+ *
+ * A fonte especificada é Atkinson Hyperlegible Next (self-hosted). Enquanto o
+ * arquivo woff2 não entra no repositório, o fallback é a pilha do sistema —
+ * trocar depois é mudar uma linha.
+ */
+const { titulo, descricao } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo}</title>
+    {descricao && <meta name="description" content={descricao} />}
+    <meta property="og:title" content={titulo} />
+    {descricao && <meta property="og:description" content={descricao} />}
+    <meta property="og:type" content="website" />
+    <style is:global>
+      :root {
+        --tinta: #1a1a2e;
+        --papel: #ffffff;
+        --primaria: #0072b2;
+        --neutra: #5b6470;
+        --positivo: #009e73;
+        --atencao: #d55e00;
+        --ausencia: #c7ccd1;
+        --borda: #e4e7eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Atkinson Hyperlegible Next", system-ui, -apple-system, sans-serif;
+        font-size: 17px;
+        line-height: 1.5;
+        color: var(--tinta);
+        background: var(--papel);
+      }
+      main {
+        max-width: 34em;
+        margin: 0 auto;
+        padding: 1rem 1rem 4rem;
+      }
+      a {
+        color: var(--primaria);
+      }
+      .numero {
+        font-variant-numeric: tabular-nums;
+      }
+      header.topo {
+        border-bottom: 1px solid var(--borda);
+        padding: 0.75rem 1rem;
+      }
+      header.topo a {
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .migalha {
+        color: var(--neutra);
+        font-size: 0.85rem;
+        margin: 0.75rem 0 0;
+      }
+      h1 {
+        font-size: 1.9rem;
+        margin: 0.25rem 0 0.25rem;
+      }
+      .subtitulo {
+        color: var(--neutra);
+        margin: 0 0 1.5rem;
+      }
+      .rodape {
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--borda);
+        color: var(--neutra);
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topo"><a href="/">Praça Pública</a></header>
+    <main>
+      <slot />
+      <p class="rodape">
+        Dados públicos oficiais, com fonte e data em cada número. Este é um MVP em
+        construção — a cobertura ainda não é nacional.
+      </p>
+    </main>
+  </body>
+</html>

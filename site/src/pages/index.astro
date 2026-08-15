@@ -1,0 +1,108 @@
+---
+/**
+ * A home é a busca (PRODUTO §1). No MVP a lista inteira cabe na página, então a
+ * filtragem é feita sobre o DOM já renderizado — sem fetch, sem índice separado.
+ * Quando a cobertura virar nacional, isto passa a consumir `busca.json`.
+ */
+import Base from "../layouts/Base.astro";
+import { lerIndice } from "../dados.js";
+
+const municipios = lerIndice();
+const porUf = municipios.reduce((acc, m) => {
+  (acc[m.uf] ??= []).push(m);
+  return acc;
+}, {});
+---
+
+<Base
+  titulo="Praça Pública — os dados da sua cidade em linguagem simples"
+  descricao="Orçamento, saúde e educação do seu município, com fonte e data em cada número."
+>
+  <h1>Os dados da sua cidade</h1>
+  <p class="subtitulo">
+    Orçamento da prefeitura em linguagem simples, comparado com cidades parecidas.
+    {municipios.length} municípios disponíveis nesta versão.
+  </p>
+
+  <label class="busca">
+    <span class="rotulo">Buscar município</span>
+    <input id="busca" type="search" placeholder="Digite o nome da cidade" autocomplete="off" />
+  </label>
+
+  {
+    Object.keys(porUf)
+      .sort()
+      .map((uf) => (
+        <section class="uf">
+          <h2>{uf}</h2>
+          <ul>
+            {porUf[uf].map((m) => (
+              <li data-nome={m.nome.toLowerCase()}>
+                <a href={`/municipio/${uf.toLowerCase()}/${m.slug}`}>{m.nome}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+  }
+</Base>
+
+<script>
+  // A única ilha de JS do MVP: filtra o que já está na página. Sem ele, a lista
+  // continua navegável — o site é legível com JS desligado.
+  const campo = document.getElementById("busca");
+  const itens = [...document.querySelectorAll("li[data-nome]")];
+  const secoes = [...document.querySelectorAll("section.uf")];
+
+  campo?.addEventListener("input", () => {
+    const termo = campo.value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "");
+    for (const item of itens) {
+      const nome = item.dataset.nome.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      item.hidden = termo.length > 0 && !nome.includes(termo);
+    }
+    for (const secao of secoes) {
+      const visiveis = [...secao.querySelectorAll("li")].some((li) => !li.hidden);
+      secao.hidden = !visiveis;
+    }
+  });
+</script>
+
+<style>
+  .busca {
+    display: block;
+    margin-bottom: 2rem;
+  }
+  .rotulo {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--neutra);
+    margin-bottom: 0.25rem;
+  }
+  input {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 1rem;
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+  }
+  input:focus {
+    outline: 2px solid var(--primaria);
+    outline-offset: 1px;
+  }
+  .uf h2 {
+    font-size: 0.9rem;
+    color: var(--neutra);
+    border-bottom: 1px solid var(--borda);
+    padding-bottom: 0.25rem;
+  }
+  .uf ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.35rem;
+  }
+</style>

@@ -1,0 +1,111 @@
+---
+/**
+ * A página do município — o produto central (PRODUTO §2).
+ *
+ * Slug por UF porque nome de município não é único no país: "bom-jesus" existe
+ * em 5 estados. O código IBGE fica no rodapé, nunca na URL principal.
+ */
+import Base from "../../../layouts/Base.astro";
+import CardIndicador from "../../../components/CardIndicador.astro";
+import {
+  lerIndice,
+  lerMunicipio,
+  formatarNumero,
+  formatarReais,
+  rotuloComparacao,
+} from "../../../dados.js";
+
+export function getStaticPaths() {
+  return lerIndice().map((m) => ({
+    params: { uf: m.uf.toLowerCase(), slug: m.slug },
+    props: { codigoIbge: m.codigo_ibge },
+  }));
+}
+
+const { codigoIbge } = Astro.props;
+const m = lerMunicipio(codigoIbge);
+
+const titulo = `${m.nome} (${m.uf}): para onde vai o dinheiro — Praça Pública`;
+const descricao =
+  `Veja em linguagem simples os dados públicos de ${m.nome} (${m.uf}): ` +
+  `orçamento e arrecadação. Fonte: SICONFI/Tesouro Nacional, dados de ${m.ano_referencia}.`;
+
+// "Em resumo": as 3 frases que aparecem no print de WhatsApp. Uma delas pode ser
+// uma lacuna de dado — transparência ativa, não omissão (PRODUTO §2 regra 1).
+const comComparacao = m.indicadores.filter((i) => i.comparacao);
+const semComparacao = m.indicadores.filter((i) => !i.comparacao);
+// Usa a MESMA função do card: comparação binária aqui produzia "menos que o
+// típico" para um valor idêntico à mediana, contradizendo o card logo abaixo.
+const FRASE = {
+  "acima dos parecidos": "mais que o típico das parecidas",
+  "abaixo dos parecidos": "menos que o típico das parecidas",
+  "na média dos parecidos": "o mesmo que o típico das parecidas",
+};
+const resumo = comComparacao.slice(0, 2).map((i) => {
+  const rotulo = rotuloComparacao(i.valor, i.comparacao);
+  return (
+    `${i.nome}: ${formatarReais(i.valor)} por ano — ` +
+    `${FRASE[rotulo]} (${formatarReais(i.comparacao.mediana_parecidos)}).`
+  );
+});
+if (semComparacao.length) {
+  resumo.push(
+    `Ainda não dá para comparar ${semComparacao.length === 1 ? "1 indicador" : `${semComparacao.length} indicadores`}: ` +
+      "há menos de 5 cidades parecidas com dado publicado."
+  );
+}
+---
+
+<Base titulo={titulo} descricao={descricao}>
+  <p class="migalha">Brasil › {m.uf} › {m.nome}</p>
+  <h1>{m.nome} — {m.uf}</h1>
+  <p class="subtitulo numero">
+    {formatarNumero(m.populacao)} habitantes{m.eh_capital ? " · capital" : ""}
+  </p>
+
+  <section class="resumo">
+    <h2>Em resumo</h2>
+    <ul>
+      {resumo.map((frase) => <li>{frase}</li>)}
+    </ul>
+  </section>
+
+  <h2>Dinheiro da prefeitura</h2>
+  {m.indicadores.map((indicador) => <CardIndicador indicador={indicador} />)}
+
+  <p class="identificacao">
+    Código IBGE {m.codigo_ibge} · dados de {m.ano_referencia} ·
+    <a href={`/dados/municipio/${m.codigo_ibge}.json`}>baixar JSON</a>
+  </p>
+</Base>
+
+<style>
+  .resumo {
+    background: #f5f9fc;
+    border-left: 3px solid var(--primaria);
+    padding: 0.75rem 1rem;
+    margin-bottom: 2rem;
+  }
+  .resumo h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--neutra);
+    margin: 0 0 0.5rem;
+  }
+  .resumo ul {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+  .resumo li {
+    margin-bottom: 0.4rem;
+  }
+  h2 {
+    font-size: 1.2rem;
+    margin: 2rem 0 1rem;
+  }
+  .identificacao {
+    font-size: 0.8rem;
+    color: var(--neutra);
+  }
+</style>

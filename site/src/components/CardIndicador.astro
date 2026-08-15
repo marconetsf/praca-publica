@@ -1,0 +1,108 @@
+---
+/**
+ * O card de indicador — a unidade visual do produto (PRODUTO §2).
+ *
+ * Estrutura obrigatória: valor traduzido, comparação com os parecidos, e a
+ * proveniência (fonte + ano de referência + data de coleta). O rótulo textual
+ * acompanha sempre o marcador visual, porque cor nunca pode ser o único canal.
+ *
+ * Quando não há grupo suficiente para mediana, o card mostra o valor e diz por
+ * que não compara — em vez de omitir a linha e deixar o leitor achar que esqueceu.
+ */
+import { formatarReais, rotuloComparacao, descreverGrupo } from "../dados.js";
+
+const { indicador } = Astro.props;
+const c = indicador.comparacao;
+const rotulo = rotuloComparacao(indicador.valor, c);
+const grupo = c ? descreverGrupo(c.grupo, c.n_parecidos) : null;
+---
+
+<article class="card">
+  <h3>{indicador.nome}</h3>
+  <p class="valor numero">{formatarReais(indicador.valor)}</p>
+
+  {
+    c ? (
+      <p class="comparacao">
+        <span class="marcador" aria-hidden="true">
+          ●
+        </span>
+        <strong>{rotulo}</strong>
+        <br />
+        <span class="detalhe numero">
+          parecidos: {formatarReais(c.mediana_parecidos)} (mediana) · {c.texto}
+        </span>
+        {grupo && <span class="detalhe grupo">Comparado com {grupo}.</span>}
+      </p>
+    ) : (
+      <p class="sem-comparacao">
+        <span aria-hidden="true">◌</span> Sem comparação: o grupo de cidades parecidas
+        tem menos de 5 municípios com dado publicado, e a mediana ficaria instável.
+      </p>
+    )
+  }
+
+  <p class="descricao">{indicador.descricao}</p>
+  <p class="fonte">
+    Fonte: {indicador.fonte} · ano {indicador.ano_referencia} · coletado em {
+      indicador.coletado_em.split("-").reverse().join("/")
+    }
+  </p>
+</article>
+
+<style>
+  .card {
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    color: var(--neutra);
+    font-weight: 600;
+  }
+  .valor {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+  .comparacao {
+    margin: 0 0 0.75rem;
+  }
+  .marcador {
+    color: var(--neutra);
+  }
+  .detalhe {
+    display: block;
+    color: var(--neutra);
+    font-size: 0.85rem;
+  }
+  .grupo {
+    margin-top: 0.25rem;
+  }
+  .sem-comparacao {
+    background: repeating-linear-gradient(
+      45deg,
+      #f7f8f9,
+      #f7f8f9 6px,
+      #eef0f2 6px,
+      #eef0f2 12px
+    );
+    border-left: 3px solid var(--ausencia);
+    padding: 0.6rem 0.75rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    color: var(--neutra);
+  }
+  .descricao {
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+  .fonte {
+    font-size: 0.75rem;
+    color: var(--neutra);
+    margin: 0;
+  }
+</style>
