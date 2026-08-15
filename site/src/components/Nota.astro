@@ -1,0 +1,78 @@
+---
+/**
+ * Nota curta ao lado do conteúdo: uma ressalva, um aviso, um "isto ainda não
+ * existe". Não é caixa decorativa — se a nota não muda a leitura de um número,
+ * ela não deveria estar na página.
+ *
+ * Três tipos, e em todos a cor é o **terceiro** canal: primeiro a forma do
+ * ícone, depois o texto do rótulo, e só então a cor da borda. Assim a nota
+ * continua legível para quem não distingue verde de laranja e para quem está
+ * com o celular no sol.
+ */
+const { tipo = "info", titulo } = Astro.props;
+
+const ESTILOS = {
+  info: { icone: "ⓘ", rotulo: "Observação" },
+  atencao: { icone: "⚠", rotulo: "Atenção" },
+  ausencia: { icone: "▨", rotulo: "Sem dado" },
+};
+const estilo = ESTILOS[tipo] ?? ESTILOS.info;
+---
+
+<div class:list={["nota", `nota--${tipo}`, tipo === "ausencia" && "hachura"]}>
+  <span class="icone" aria-hidden="true">{estilo.icone}</span>
+  <div class="corpo">
+    {titulo && <p class="titulo">{titulo}</p>}
+    {!titulo && <span class="oculto-visual">{estilo.rotulo}: </span>}
+    <slot />
+  </div>
+</div>
+
+<style>
+  .nota {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--esp-2);
+    border: 1px solid var(--cor-borda);
+    border-left-width: 4px;
+    border-radius: var(--raio-p);
+    padding: var(--esp-3) var(--esp-4);
+    margin: 0 0 var(--esp-4);
+    font-size: var(--texto-menor);
+  }
+  .nota--info {
+    border-left-color: var(--cor-primaria);
+    background-color: var(--cor-papel-suave);
+  }
+  .nota--atencao {
+    border-left-color: var(--cor-atencao);
+  }
+  .nota--ausencia {
+    border-color: var(--cor-ausencia);
+    border-left-color: var(--cor-ausencia);
+  }
+  .icone {
+    flex: 0 0 auto;
+    font-size: var(--texto-medio);
+    line-height: 1.25;
+  }
+  .nota--info .icone {
+    color: var(--cor-primaria);
+  }
+  .nota--atencao .icone {
+    color: var(--cor-atencao-texto);
+  }
+  .corpo {
+    min-width: 0;
+  }
+  .titulo {
+    margin: 0 0 var(--esp-1);
+    font-weight: var(--peso-forte);
+  }
+  .corpo :global(p) {
+    margin: 0 0 var(--esp-2);
+  }
+  .corpo :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

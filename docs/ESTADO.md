@@ -58,12 +58,21 @@ gh run list --event schedule --limit 12
    é API JSON, não arquivo, então não passa pelo espelhador atual. Decidir se vira ingestão
    histórica (M1.2) em vez de espelho.
 
-### 3. M1.1 — contratos e a dívida do `cod_ibge`
+### 3. Indicadores que mostram evolução
+O MVP só tem indicadores de composição de gasto, que não têm direção — não respondem "minha
+cidade está melhorando?". O critério de escolha está em [INDICADORES.md](INDICADORES.md) e o
+andamento em **[CHECKLIST-INDICADORES.md](CHECKLIST-INDICADORES.md)**, que também lista os
+bloqueios (SINASC nacional só até 2017; IDEB sem série; `.dbc` sem conversor).
+
+Próximo da fila por prontidão real: **abandono escolar** — única fonte com espelho completo e
+formato legível.
+
+### 4. M1.1 — contratos e a dívida do `cod_ibge`
 Antes de qualquer ingestão nova. Inclui a **violação da regra 2** que está aberta: o
 `cod_ibge` é gravado como **BIGINT** no staging do SICONFI, e a regra exige `VARCHAR(7)`
 (zeros à esquerda). Corrigir junto com os contratos YAML e o gate raw→staging.
 
-### 4. M1.2 em diante
+### 5. M1.2 em diante
 SICONFI nacional → IBGE → INEP (sobre o espelho já feito) → DataSUS (idem) → ANEEL → CAGED.
 Ver ESCOPO §3.
 

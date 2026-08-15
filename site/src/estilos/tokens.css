@@ -1,0 +1,152 @@
+/**
+ * Tokens visuais da Praça Pública — o único lugar do site com valor cru.
+ *
+ * Nenhum componente escreve `#0072b2`, `14px` ou `10px`: escreve o token. Isso
+ * existe por dois motivos práticos, não por estética:
+ *
+ * 1. O leitor típico está num Android de entrada, com internet ruim e talvez
+ *    baixa visão. Decisão de contraste e de tamanho tem que ser tomada uma vez,
+ *    conferida uma vez, e valer para a página inteira.
+ * 2. Cor nunca é o único canal (PRODUTO §3). Por isso cada token de cor diz,
+ *    no comentário, se pode ou não carregar texto sozinho — e nenhum deles pode
+ *    carregar significado sozinho.
+ *
+ * Os contrastes anotados são contra `--cor-papel` (#FFFFFF), calculados pela
+ * fórmula da WCAG 2.1. Piso do projeto: 4,5:1 para texto, 3:1 para componente.
+ */
+
+:root {
+  /* ==========================================================================
+     COR — paleta Okabe-Ito, segura para as formas comuns de daltonismo.
+     ========================================================================== */
+
+  /* Texto corrido e números. 17:1 sobre o papel — o par mais legível do site.
+     Use como padrão; só saia dele quando a informação for secundária. */
+  --cor-tinta: #1a1a2e;
+
+  /* Fundo padrão da página. Branco puro por contraste e por peso de bytes. */
+  --cor-papel: #ffffff;
+
+  /* Fundo de bloco que precisa se destacar sem virar caixa colorida:
+     "Em resumo", corpo do "como foi calculado". Sobre ele, --cor-tinta dá
+     15,9:1, --cor-neutra dá 5,6:1 e --cor-primaria (link) dá 4,8:1 — os três
+     passam, que é o que permite usar este fundo sem trocar a cor do texto. */
+  --cor-papel-suave: #f5f7f9;
+
+  /* Azul Okabe-Ito. 5,2:1 — pode carregar texto. Uso exclusivo: link, foco e
+     barra de destaque. Nunca para dizer "bom" nem para colorir dado. */
+  --cor-primaria: #0072b2;
+
+  /* Azul escurecido para link sobre fundo suave e para :hover. 7,4:1. */
+  --cor-primaria-escura: #005a8d;
+
+  /* Cinza-azulado de texto secundário: rótulo, proveniência, legenda. 6,0:1
+     sobre papel e 5,6:1 sobre papel-suave — pode carregar texto pequeno.
+     Não use para o número principal: informação primária vai em --cor-tinta. */
+  --cor-neutra: #5b6470;
+
+  /* Verde-azulado Okabe-Ito. 3,4:1 — NÃO passa em texto. Só preenchimento,
+     borda ou marcador com rótulo escrito ao lado. Reservado a indicador com
+     direção pactuada e documentada em /metodologia (ex.: cobertura vacinal ↑).
+     Composição de gasto é neutra: gastar mais não é bom nem ruim. */
+  --cor-positivo: #009e73;
+
+  /* Versão escurecida do verde para quando ele precisar virar texto. 6,5:1. */
+  --cor-positivo-texto: #006b4f;
+
+  /* Laranja Okabe-Ito (nunca vermelho puro — vermelho lê como "culpa").
+     3,9:1 — NÃO passa em texto. Mesma regra do verde: só com rótulo escrito. */
+  --cor-atencao: #d55e00;
+
+  /* Laranja escurecido para texto de aviso. 6,1:1. */
+  --cor-atencao-texto: #a34700;
+
+  /* Cinza da ausência de dado: borda e traço da hachura. Nunca em texto —
+     o motivo da falta é informação de primeira classe e vai em --cor-tinta. */
+  --cor-ausencia: #c7ccd1;
+
+  /* Os dois tons da hachura diagonal que marca "sem dado". A diferença entre
+     eles é sutil de propósito: precisa ser reconhecível, não chamativa. */
+  --cor-ausencia-fundo: #f4f6f7;
+  --cor-ausencia-traco: #e4e7eb;
+
+  /* Borda padrão de card e separador de seção. Só estrutura, nunca semântica. */
+  --cor-borda: #e4e7eb;
+
+  /* Borda de elemento interativo (campo de busca, botão): 4,1:1 contra o
+     papel, acima do piso de 3:1 que a WCAG pede para componente. */
+  --cor-borda-forte: #767f8a;
+
+  /* Anel de foco do teclado. Sempre visível, sempre com offset: quem navega
+     por Tab precisa enxergar onde está. */
+  --cor-foco: #0072b2;
+
+  /* ==========================================================================
+     TIPOGRAFIA
+     ========================================================================== */
+
+  /* Atkinson Hyperlegible Next foi desenhada para baixa visão: distingue
+     1/l/I e 0/O, que num site de números é diferença de leitura, não de gosto.
+     Enquanto o woff2 não entra no repositório, cai na pilha do sistema. */
+  --fonte-texto: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* Escala ~1,25 arredondada para rem inteiros. A raiz é 106,25% (17 px quando
+     o navegador está no padrão) — em porcentagem, e não em px, para respeitar
+     quem aumentou a fonte padrão do celular. */
+  --texto-mini: 0.75rem; /* proveniência, rodapé, selo. Piso: nada menor. */
+  --texto-menor: 0.875rem; /* legenda, nota de rodapé de card, descrição */
+  --texto-base: 1rem; /* texto corrido — o padrão de tudo */
+  --texto-medio: 1.125rem; /* linha de apoio do título, resumo */
+  --texto-t3: 1.25rem; /* título de card e de subseção */
+  --texto-t2: 1.5rem; /* título de seção da página */
+  --texto-t1: 1.875rem; /* h1 — o nome do município */
+  --texto-destaque: 2.25rem; /* o número grande do card: o que se lê em 5 s */
+
+  --linha-texto: 1.5; /* corpo: respiro suficiente para leitura longa */
+  --linha-titulo: 1.2; /* título: linhas juntas para ler como um bloco */
+
+  --peso-normal: 400;
+  --peso-medio: 600; /* rótulo e cabeçalho de tabela */
+  --peso-forte: 700; /* número em destaque e ênfase real */
+
+  /* Largura máxima de coluna de texto. Acima de ~34em o olho perde a linha. */
+  --medida-texto: 34em;
+
+  /* ==========================================================================
+     ESPAÇAMENTO — escala de 0,25rem. Só use os degraus.
+     ========================================================================== */
+
+  --esp-1: 0.25rem; /* entre um rótulo e o que ele rotula */
+  --esp-2: 0.5rem; /* entre partes de um mesmo componente */
+  --esp-3: 0.75rem; /* padding interno apertado (selo, nota compacta) */
+  --esp-4: 1rem; /* padding padrão de card; margem entre parágrafos */
+  --esp-5: 1.5rem; /* entre componentes irmãos (um card e o seguinte) */
+  --esp-6: 2rem; /* entre blocos de assunto diferente */
+  --esp-7: 3rem; /* entre seções da página */
+  --esp-8: 4rem; /* respiro do fim da página, acima do rodapé */
+
+  /* Alvo mínimo de toque (WCAG 2.1 AA / PRODUTO §7). Vale para todo link e
+     botão que o leitor use com o polegar. */
+  --alvo-toque: 44px;
+
+  /* ==========================================================================
+     RAIO — quanto mais estrutural o elemento, menor o raio.
+     ========================================================================== */
+
+  --raio-nenhum: 0; /* separadores e barras coladas na borda da tela */
+  --raio-p: 6px; /* campo de busca, botão, selo retangular */
+  --raio-m: 10px; /* card de indicador — o raio padrão do site */
+  --raio-g: 16px; /* bloco grande que agrupa cards */
+  --raio-pilula: 999px; /* selo curto ("Sem dado"), marcador redondo */
+
+  /* ==========================================================================
+     SOMBRA — o site é plano de propósito.
+     Hierarquia aqui se faz com espaço e borda; sombra custa pintura no
+     Android de entrada e some no sol. Use só quando algo SE SOBREPÕE.
+     ========================================================================== */
+
+  --sombra-nenhuma: none; /* o padrão: card não tem sombra */
+  --sombra-leve: 0 1px 2px rgb(26 26 46 / 0.08); /* barra fixa sobre conteúdo */
+  --sombra-media: 0 4px 12px rgb(26 26 46 / 0.14); /* camada realmente flutuante */
+}

@@ -1,0 +1,94 @@
+---
+/**
+ * O estado de ausência — reutilizável, e a regra de ferro do PRODUTO §2.5.
+ *
+ * Dado que falta não é zero e não é linha sumida: é informação pública, e às
+ * vezes a mais importante da página. Uma prefeitura que não declarou ao Tesouro
+ * está dizendo algo sobre si mesma, e o leitor tem direito de ver isso no mesmo
+ * lugar onde veria o número.
+ *
+ * Por isso o bloco ocupa o espaço do card que faltou, em vez de encolher: a
+ * hachura diagonal marca o buraco, o selo "Sem dado" o nomeia em palavras, e o
+ * motivo aparece por extenso. Três canais, nenhum deles a cor.
+ *
+ * Props:
+ *   titulo   — o nome do que faltou (ex.: "Impostos arrecadados por morador")
+ *   rotulo   — o que está faltando, no selo. "Sem dado" quando não existe
+ *              número; "Sem comparação" quando o número existe mas a referência
+ *              não — misturar os dois faria o leitor achar que o valor ao lado
+ *              também é inventado
+ *   nivel    — nível do heading, para não quebrar a hierarquia da página
+ *   compacto — versão de uma linha, para usar dentro de outro componente
+ *   fonte    — de onde o dado viria, se existisse
+ * O motivo vai no slot, sempre em linguagem simples e sem culpar ninguém.
+ */
+const { titulo, rotulo = "Sem dado", nivel = 3, compacto = false, fonte } = Astro.props;
+const Tag = `h${nivel}`;
+---
+
+<div class:list={["sem-dado", "hachura", compacto && "compacto"]}>
+  <p class="selo">
+    <span aria-hidden="true">▨</span> {rotulo}
+  </p>
+  {titulo && !compacto && <Tag class="titulo">{titulo}</Tag>}
+  <div class="motivo"><slot /></div>
+  {
+    fonte && !compacto && (
+      <p class="fonte">
+        Viria de: {fonte}. Quando o dado chegar, ele aparece aqui — e a página
+        registra a data.
+      </p>
+    )
+  }
+</div>
+
+<style>
+  .sem-dado {
+    border: 2px dashed var(--cor-ausencia);
+    border-radius: var(--raio-m);
+    padding: var(--esp-4);
+    margin: 0 0 var(--esp-5);
+  }
+  .compacto {
+    border-width: 1px;
+    padding: var(--esp-3);
+    margin-bottom: var(--esp-3);
+    font-size: var(--texto-menor);
+  }
+  .selo {
+    display: inline-block;
+    margin: 0 0 var(--esp-2);
+    padding: 0.1rem var(--esp-2);
+    border-radius: var(--raio-pilula);
+    background: var(--cor-papel);
+    border: 1px solid var(--cor-ausencia);
+    font-size: var(--texto-mini);
+    font-weight: var(--peso-medio);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--cor-tinta);
+  }
+  .compacto .selo {
+    margin-bottom: var(--esp-1);
+  }
+  .titulo {
+    margin: 0 0 var(--esp-2);
+    font-size: var(--texto-t3);
+  }
+  /* Texto do motivo em tinta cheia, não em cinza: a explicação da falta é
+     conteúdo principal, e sobre hachura o cinza secundário perderia contraste. */
+  .motivo {
+    color: var(--cor-tinta);
+  }
+  .motivo :global(p) {
+    margin: 0 0 var(--esp-2);
+  }
+  .motivo :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .fonte {
+    margin: var(--esp-3) 0 0;
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>

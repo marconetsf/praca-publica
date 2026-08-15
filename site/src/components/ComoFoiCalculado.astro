@@ -1,0 +1,158 @@
+---
+/**
+ * "Como este número foi calculado?" — o componente que sustenta a promessa do
+ * projeto inteiro (PRODUTO §5): todo número publicado abre a própria conta.
+ *
+ * Duas decisões de construção, e as duas são de acessibilidade:
+ *
+ * 1. **`<details>`/`<summary>`, não div escondida por script.** A página tem que
+ *    funcionar com JavaScript desligado, em conexão que caiu no meio do
+ *    carregamento e em navegador de celular antigo. `<details>` abre, fecha,
+ *    responde ao teclado, anuncia o estado ao leitor de tela e é encontrado pelo
+ *    Ctrl+F do navegador — tudo isso sem uma linha de JS.
+ * 2. **Fechado por padrão.** O leitor de 15 segundos não deve tropeçar em
+ *    metodologia; o leitor desconfiado precisa achá-la em um toque. Fechado
+ *    atende os dois, e o alvo do toque tem a altura mínima de 44 px.
+ *
+ * A ordem dos campos é a ordem das perguntas de quem desconfia: quem diz isso,
+ * como vocês contaram, o que isso não prova, e onde eu confiro sozinho.
+ */
+import { formatarData } from "../dados.js";
+
+const { procedencia: p, nome } = Astro.props;
+---
+
+<details class="como">
+  <summary>
+    <span class="icone" aria-hidden="true">?</span>
+    <span>Como este número foi calculado?</span>
+    {nome && <span class="oculto-visual"> — {nome}</span>}
+  </summary>
+
+  <div class="corpo">
+    <dl>
+      <dt>Quem publica o dado</dt>
+      <dd>{p.orgao} — {p.fonte}</dd>
+
+      <dt>Como fizemos a conta</dt>
+      <dd>{p.formula_legivel}</dd>
+
+      <dt>O que este número não diz</dt>
+      <dd>{p.ressalvas}</dd>
+
+      <dt>A conta exata, para quem quiser conferir</dt>
+      <dd class="tecnico">{p.formula_sql}</dd>
+
+      <dt>Datas</dt>
+      <dd class="numero">
+        O dado é do ano de {p.ano_referencia}. Nós o coletamos em {
+          formatarData(p.coletado_em)
+        }. A distância entre as duas datas é o tempo que o órgão levou para
+        publicar — por isso mostramos as duas.
+      </dd>
+    </dl>
+
+    <p class="bruto">
+      <a href={p.url_dado_bruto} target="_blank" rel="noopener">
+        Abrir o dado bruto no site do {p.orgao}
+        <span aria-hidden="true">↗</span>
+        <span class="oculto-visual">(abre em outra aba; é um arquivo técnico)</span>
+      </a>
+    </p>
+    <p class="versao">Metodologia versão {p.versao_metodologia}.</p>
+  </div>
+</details>
+
+<style>
+  .como {
+    border-top: 1px solid var(--cor-borda);
+    margin-top: var(--esp-3);
+  }
+  summary {
+    display: flex;
+    align-items: center;
+    gap: var(--esp-2);
+    min-height: var(--alvo-toque);
+    padding: var(--esp-2) 0;
+    cursor: pointer;
+    color: var(--cor-primaria);
+    font-size: var(--texto-menor);
+    font-weight: var(--peso-medio);
+    /* O triângulo padrão do navegador muda de forma entre plataformas; o
+       marcador próprio abaixo é o mesmo em todas. */
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  .icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.4em;
+    flex: 0 0 auto;
+    border: 1px solid currentColor;
+    border-radius: var(--raio-pilula);
+    font-size: var(--texto-mini);
+    font-weight: var(--peso-forte);
+  }
+  /* Marcador de estado: "+" fechado, "−" aberto. Decorativo — o estado real
+     quem anuncia é o próprio <details>, que o leitor de tela já entende. */
+  summary::after {
+    content: "+";
+    margin-left: auto;
+    font-size: var(--texto-t3);
+    line-height: 1;
+  }
+  .como[open] summary::after {
+    content: "−";
+  }
+  .corpo {
+    padding: var(--esp-3) var(--esp-4) var(--esp-4);
+    margin-bottom: var(--esp-2);
+    background: var(--cor-papel-suave);
+    border-radius: var(--raio-p);
+    font-size: var(--texto-menor);
+  }
+  dl {
+    margin: 0;
+  }
+  dt {
+    margin-top: var(--esp-3);
+    font-size: var(--texto-mini);
+    font-weight: var(--peso-medio);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--cor-neutra);
+  }
+  dt:first-child {
+    margin-top: 0;
+  }
+  dd {
+    margin: var(--esp-1) 0 0;
+  }
+  /* A fórmula técnica é para auditoria, não para leitura corrida: fonte
+     monoespaçada e quebra forçada, porque nome de conta do SICONFI não cabe
+     em 360 px e não pode estourar a largura da tela. */
+  .tecnico {
+    font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    font-size: var(--texto-mini);
+    overflow-wrap: anywhere;
+    color: var(--cor-neutra);
+  }
+  .bruto {
+    margin: var(--esp-4) 0 0;
+  }
+  .bruto a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--esp-1);
+    min-height: var(--alvo-toque);
+  }
+  .versao {
+    margin: 0;
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>

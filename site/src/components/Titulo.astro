@@ -1,0 +1,73 @@
+---
+/**
+ * Título de seção.
+ *
+ * Existe para separar duas decisões que costumam ser confundidas: o **nível**
+ * (h2, h3 — a estrutura que o leitor de tela percorre) e o **tamanho** (o que
+ * o olho vê). Sem essa separação, alguém pula de h2 para h4 só porque queria
+ * uma letra menor — e quem navega por cabeçalhos perde o fio.
+ *
+ * `sobretitulo` é o rótulo curto acima do título ("EM RESUMO", "DINHEIRO DA
+ * PREFEITURA"). Fica em maiúsculas por CSS, não no texto: leitor de tela
+ * soletra sigla escrita em caixa alta.
+ */
+const { nivel = 2, tamanho, id, sobretitulo, ancora = false } = Astro.props;
+const Tag = `h${nivel}`;
+const classeTamanho = `t${tamanho ?? nivel}`;
+---
+
+<div class="bloco-titulo">
+  {sobretitulo && <p class="sobretitulo">{sobretitulo}</p>}
+  <Tag id={id} class:list={["titulo", classeTamanho]}>
+    <slot />
+    {
+      ancora && id && (
+        <a class="ancora" href={`#${id}`}>
+          <span aria-hidden="true">#</span>
+          <span class="oculto-visual">link para esta seção</span>
+        </a>
+      )
+    }
+  </Tag>
+</div>
+
+<style>
+  .bloco-titulo {
+    margin: var(--esp-6) 0 var(--esp-4);
+  }
+  .bloco-titulo:first-child {
+    margin-top: 0;
+  }
+  .sobretitulo {
+    margin: 0 0 var(--esp-1);
+    font-size: var(--texto-mini);
+    font-weight: var(--peso-medio);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cor-neutra);
+  }
+  .titulo {
+    margin: 0;
+  }
+  .t1 {
+    font-size: var(--texto-t1);
+  }
+  .t2 {
+    font-size: var(--texto-t2);
+  }
+  .t3 {
+    font-size: var(--texto-t3);
+  }
+  .t4 {
+    font-size: var(--texto-base);
+  }
+  .ancora {
+    margin-left: var(--esp-2);
+    font-size: var(--texto-menor);
+    text-decoration: none;
+    color: var(--cor-neutra);
+  }
+  .ancora:hover {
+    color: var(--cor-primaria-escura);
+  }
+</style>

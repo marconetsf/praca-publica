@@ -1,0 +1,8 @@
+# dependências e build
+node_modules/
+dist/
+.astro/
+
+# dados gerados pelo pipeline — reproduzíveis com:
+#   python -m pipelines.marts.serving --ano 2024
+public/dados/

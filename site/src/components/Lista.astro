@@ -1,0 +1,88 @@
+---
+/**
+ * Lista — três variantes, uma marcação só.
+ *
+ *   resumo  — as frases do "Em resumo". Texto um pouco maior, marcador discreto:
+ *             é o bloco que vira print de WhatsApp, então cada item tem que se
+ *             sustentar sozinho fora da página.
+ *   links   — navegação (municípios, seções). Grade que se acomoda de 1 a 3
+ *             colunas conforme a largura, e cada alvo com os 44 px de altura
+ *             mínima exigidos por PRODUTO §7.
+ *   simples — lista de texto comum.
+ *
+ * `itens` aceita string ou `{ texto, href, apoio, atributos }`. `atributos` é
+ * espalhado no `<li>` (a busca da home marca cada item com `data-nome`); sem
+ * isso, o item teria que vir por slot e perderia o estilo do componente.
+ * Sem `itens`, o conteúdo vem pelo slot.
+ */
+const { itens = [], variante = "simples", rotulo } = Astro.props;
+const temItens = itens.length > 0;
+---
+
+<ul class:list={["lista", `lista--${variante}`]} aria-label={rotulo}>
+  {
+    temItens
+      ? itens.map((item) => {
+          const dado = typeof item === "string" ? { texto: item } : item;
+          return (
+            <li {...(dado.atributos ?? {})}>
+              {dado.href ? (
+                <a href={dado.href}>
+                  {dado.texto}
+                  {dado.apoio && <span class="apoio">{dado.apoio}</span>}
+                </a>
+              ) : (
+                <>
+                  {dado.texto}
+                  {dado.apoio && <span class="apoio">{dado.apoio}</span>}
+                </>
+              )}
+            </li>
+          );
+        })
+      : <slot />
+  }
+</ul>
+
+<style>
+  .lista {
+    margin: 0 0 var(--esp-4);
+    padding-left: 1.15rem;
+  }
+  .lista li {
+    margin-bottom: var(--esp-2);
+  }
+  .lista li:last-child {
+    margin-bottom: 0;
+  }
+
+  .lista--resumo {
+    font-size: var(--texto-medio);
+  }
+  .lista--resumo li {
+    margin-bottom: var(--esp-3);
+  }
+
+  .lista--links {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0;
+  }
+  .lista--links li {
+    margin: 0;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+  .lista--links a {
+    display: flex;
+    align-items: center;
+    min-height: var(--alvo-toque);
+    padding: var(--esp-2) var(--esp-1);
+  }
+  .apoio {
+    margin-left: var(--esp-2);
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>

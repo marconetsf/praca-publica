@@ -1,0 +1,210 @@
+---
+/**
+ * O card de indicador — a unidade visual do produto (PRODUTO §2).
+ *
+ * A ordem dos elementos é a ordem das perguntas do leitor, e não muda:
+ *
+ *   1. do que estamos falando        → o nome do indicador
+ *   2. quanto é                      → o número, no maior corpo da página
+ *   3. quanto é o quê                → a unidade ("por morador, em 2024")
+ *   4. isso é muito ou pouco?        → a comparação com as cidades parecidas
+ *   5. de onde veio                  → fonte, ano do dado, data da coleta
+ *   6. como vocês chegaram nisso     → o "como foi calculado", fechado
+ *
+ * Regras que este componente encarna:
+ *
+ * - **Nenhum card sem referência** (régua única, PRODUTO §2.3): ou há mediana
+ *   das parecidas, ou o card diz em voz alta por que não há — nunca fica um
+ *   número solto, que é o formato em que qualquer valor parece escandaloso.
+ * - **Sem valência moral**: gasto alto não é bom nem ruim, então o marcador é
+ *   cinza e o texto diz posição, não julgamento. Verde e laranja ficam
+ *   reservados a indicador com direção pactuada em /metodologia.
+ * - **Cor nunca sozinha**: a régua de barras é `aria-hidden` porque tudo que
+ *   ela mostra está escrito na frase logo abaixo. Ela ajuda quem enxerga a
+ *   comparar em um relance; ninguém depende dela para entender.
+ */
+import ComoFoiCalculado from "./ComoFoiCalculado.astro";
+import SemDado from "./SemDado.astro";
+import {
+  formatarReais,
+  formatarData,
+  descreverUnidade,
+  classificarComparacao,
+  ROTULO_COMPARACAO,
+  descreverGrupo,
+} from "../dados.js";
+
+const { indicador, nomeMunicipio = "esta cidade", nivel = 3 } = Astro.props;
+const Tag = `h${nivel}`;
+
+const c = indicador.comparacao;
+const classe = classificarComparacao(indicador.valor, c);
+const grupo = c ? descreverGrupo(c.grupo) : null;
+
+// Barras na mesma escala: o maior dos dois valores é 100%. Piso de 3% para que
+// um valor muito pequeno continue visível como barra, e não vire nada.
+const maximo = c ? Math.max(indicador.valor, c.mediana_parecidos) : indicador.valor;
+const larguraValor = Math.max(3, (indicador.valor / maximo) * 100);
+const larguraMediana = c ? Math.max(3, (c.mediana_parecidos / maximo) * 100) : 0;
+
+// A frase da comparação é montada aqui, inteira, e não costurada no template:
+// interpolação em JSX insere espaço antes da pontuação ("R$ 1.575 , e Boa
+// Vista...") e um erro desses aparece no print do WhatsApp, não no teste.
+const detalhe = c
+  ? `Cidades parecidas: ${grupo}. O típico delas — a mediana — é ` +
+    formatarReais(c.mediana_parecidos) +
+    (c.posicao && c.n_parecidos
+      ? `, e ${nomeMunicipio} tem o ${c.posicao}º maior valor entre as ${c.n_parecidos}.`
+      : ".")
+  : null;
+---
+
+<article class="card">
+  <Tag class="nome">{indicador.nome}</Tag>
+
+  <p class="valor numero">{formatarReais(indicador.valor)}</p>
+  <p class="unidade">{descreverUnidade(indicador.unidade, indicador.ano_referencia)}</p>
+
+  {
+    c ? (
+      <div class="comparacao">
+        <p class="rotulo">
+          <span class="marcador" aria-hidden="true">
+            ●
+          </span>
+          <strong>{ROTULO_COMPARACAO[classe]}</strong>
+        </p>
+
+        <div class="regua" aria-hidden="true">
+          <div class="linha">
+            <span class="rot">{nomeMunicipio}</span>
+            <span class="val numero">{formatarReais(indicador.valor)}</span>
+          </div>
+          <div class="trilho">
+            <span class="barra" style={`width:${larguraValor}%`} />
+          </div>
+          <div class="linha">
+            <span class="rot">cidades parecidas</span>
+            <span class="val numero">{formatarReais(c.mediana_parecidos)}</span>
+          </div>
+          <div class="trilho">
+            <span class="barra barra--mediana" style={`width:${larguraMediana}%`} />
+          </div>
+        </div>
+
+        <p class="detalhe numero">{detalhe}</p>
+      </div>
+    ) : (
+      <SemDado compacto rotulo="Sem comparação">
+        <p>
+          Ainda não dá para comparar: o grupo de cidades parecidas tem menos de 5
+          municípios com este dado publicado, e a mediana de tão poucos seria
+          ruído com cara de referência.
+        </p>
+      </SemDado>
+    )
+  }
+
+  <p class="descricao">{indicador.descricao}</p>
+
+  <p class="proveniencia numero">
+    Fonte: {indicador.fonte} · dados de {indicador.ano_referencia} · coletado em {
+      formatarData(indicador.coletado_em)
+    }
+  </p>
+
+  {
+    indicador.procedencia && (
+      <ComoFoiCalculado procedencia={indicador.procedencia} nome={indicador.nome} />
+    )
+  }
+</article>
+
+<style>
+  .card {
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-m);
+    padding: var(--esp-4);
+    margin-bottom: var(--esp-5);
+    box-shadow: var(--sombra-nenhuma);
+  }
+  .nome {
+    margin: 0 0 var(--esp-2);
+    font-size: var(--texto-t3);
+  }
+  .valor {
+    margin: 0;
+    font-size: var(--texto-destaque);
+    font-weight: var(--peso-forte);
+    line-height: 1.1;
+  }
+  .unidade {
+    margin: var(--esp-1) 0 var(--esp-4);
+    color: var(--cor-neutra);
+    font-size: var(--texto-menor);
+  }
+
+  .comparacao {
+    margin-bottom: var(--esp-4);
+  }
+  .rotulo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--esp-2);
+    margin: 0 0 var(--esp-3);
+  }
+  /* Marcador neutro de propósito. Composição de gasto não tem lado certo:
+     colorir de verde ou laranja aqui seria dar nota à prefeitura. */
+  .marcador {
+    color: var(--cor-neutra);
+    font-size: var(--texto-menor);
+  }
+
+  .regua {
+    margin: 0 0 var(--esp-3);
+  }
+  .linha {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--esp-2);
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+  .linha .val {
+    font-weight: var(--peso-medio);
+    color: var(--cor-tinta);
+  }
+  .trilho {
+    height: 0.75rem;
+    margin: var(--esp-1) 0 var(--esp-2);
+    background: var(--cor-papel-suave);
+    border-radius: var(--raio-pilula);
+  }
+  .barra {
+    display: block;
+    height: 100%;
+    border-radius: var(--raio-pilula);
+    background: var(--cor-primaria);
+  }
+  /* A barra das parecidas é vazada, não colorida: quem não distingue azul de
+     cinza continua vendo duas barras diferentes — uma cheia e uma de contorno. */
+  .barra--mediana {
+    background: var(--cor-papel);
+    border: 2px solid var(--cor-neutra);
+  }
+
+  .detalhe {
+    margin: 0;
+    font-size: var(--texto-menor);
+    color: var(--cor-neutra);
+  }
+  .descricao {
+    margin: 0 0 var(--esp-3);
+    font-size: var(--texto-menor);
+  }
+  .proveniencia {
+    margin: 0;
+    font-size: var(--texto-mini);
+    color: var(--cor-neutra);
+  }
+</style>
