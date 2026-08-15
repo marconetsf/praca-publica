@@ -75,10 +75,7 @@ INDICADORES: tuple[Indicador, ...] = (
     Indicador(
         indicador_id="siconfi_despesa_saude_pc",
         nome_exibicao="Gasto com saúde por morador",
-        descricao_publica=(
-            "Quanto a prefeitura efetivamente pagou em saúde no ano, dividido pelo "
-            "número de moradores. Inclui hospitais, postos e agentes de saúde."
-        ),
+        descricao_publica="Hospitais, postos e agentes de saúde.",
         unidade="R$/morador/ano",
         # gastar mais não é melhor nem pior por si só — composição não tem valência
         direcao_melhor="neutro",
@@ -86,66 +83,55 @@ INDICADORES: tuple[Indicador, ...] = (
         coluna="Despesas Pagas",
         conta="10 - Saúde",
         formula_legivel=(
-            "Pegamos o total que a prefeitura pagou na função Saúde durante o ano, "
-            "conforme ela mesma declarou ao Tesouro Nacional, e dividimos pelo número "
-            "de moradores da cidade. Usamos o valor pago, não o empenhado — empenhado "
-            "é o compromisso de gastar; pago é o dinheiro que efetivamente saiu."
+            "O que a prefeitura pagou em saúde no ano, dividido pelos moradores. "
+            "Usamos o valor pago, não o empenhado: empenhado é promessa de gasto."
         ),
         ressalvas=(
-            "O valor é o que a prefeitura declarou, e o Tesouro publica sem auditar: "
-            "cerca de 1 em cada 4 declarações municipais tem alguma inconsistência. "
-            "Cidades pequenas costumam ter valor por morador mais alto, porque custos "
-            "fixos se dividem entre menos gente — por isso a comparação é entre cidades "
-            "de porte parecido."
+            "Quem declara é a prefeitura, e o Tesouro publica sem auditar. "
+            "Cidade pequena tende a gastar mais por morador — custo fixo dividido "
+            "entre menos gente. Por isso a comparação é só com cidades de porte parecido."
         ),
     ),
     Indicador(
         indicador_id="siconfi_despesa_educacao_pc",
         nome_exibicao="Gasto com educação por morador",
-        descricao_publica=(
-            "Quanto a prefeitura efetivamente pagou em educação no ano, dividido pelo "
-            "número de moradores. Inclui escolas, merenda e transporte escolar."
-        ),
+        descricao_publica="Escolas, merenda e transporte escolar.",
         unidade="R$/morador/ano",
         direcao_melhor="neutro",
         anexo="DCA-Anexo I-E",
         coluna="Despesas Pagas",
         conta="12 - Educação",
         formula_legivel=(
-            "Pegamos o total que a prefeitura pagou na função Educação durante o ano, "
-            "conforme ela mesma declarou ao Tesouro Nacional, e dividimos pelo número "
-            "de moradores da cidade — não pelo número de alunos."
+            "O que a prefeitura pagou em educação no ano, dividido pelos moradores "
+            "da cidade — **não** pelo número de alunos."
         ),
+        # A ressalva mais importante do MVP: o leitor lê "educação por morador" e
+        # entende "investimento por aluno", que é outra conta. Enquanto o Censo
+        # Escolar (M1.4) não entra, o texto precisa dizer isso de frente.
         ressalvas=(
-            "Dividimos por morador, e não por aluno, para que o número possa ser "
-            "comparado com os outros da página. Cidades com muitas crianças tendem a "
-            "gastar mais por morador sem que isso signifique gastar mais por aluno. "
-            "O valor é declarado pela prefeitura e publicado pelo Tesouro sem auditoria."
+            "Atenção: este número mede o esforço do orçamento, não o investimento por "
+            "aluno. Saúde atende todo mundo; escola atende quem estuda. Cidade com mais "
+            "crianças aparece gastando mais por morador sem gastar mais por aluno. "
+            "O gasto por aluno depende do número de matrículas, que entra em versão futura."
         ),
     ),
     Indicador(
         indicador_id="siconfi_receita_impostos_pc",
         nome_exibicao="Impostos arrecadados por morador",
-        descricao_publica=(
-            "Quanto a prefeitura arrecadou de impostos próprios no ano (como IPTU e ISS), "
-            "dividido pelo número de moradores. Não inclui repasses da União e do estado."
-        ),
+        descricao_publica="IPTU, ISS e outros impostos da própria cidade.",
         unidade="R$/morador/ano",
         direcao_melhor="neutro",
         anexo="DCA-Anexo I-C",
         coluna="Receitas Brutas Realizadas",
         conta="1.1.1.0.00.0.0 - Impostos",
         formula_legivel=(
-            "Somamos os impostos que a própria prefeitura arrecadou no ano — como IPTU "
-            "e ISS — e dividimos pelo número de moradores. Repasses da União e do estado "
-            "ficam de fora, porque a ideia é mostrar o que a cidade arrecada sozinha."
+            "Os impostos que a própria prefeitura arrecadou no ano, divididos pelos "
+            "moradores. Repasses da União e do estado ficam de fora."
         ),
         ressalvas=(
-            "Arrecadar pouco por morador não significa má gestão: depende muito do "
-            "tamanho da economia local e do valor dos imóveis. A maior parte do dinheiro "
-            "da maioria dos municípios brasileiros vem de repasses, não de impostos "
-            "próprios. Alguns municípios declararam valor negativo nesta conta em 2024 — "
-            "quando isso acontece, não publicamos o número."
+            "Arrecadar pouco não significa má gestão: depende da economia local e do "
+            "valor dos imóveis. Na maioria das cidades brasileiras, o dinheiro vem "
+            "principalmente de repasses, não de impostos próprios."
         ),
     ),
 )

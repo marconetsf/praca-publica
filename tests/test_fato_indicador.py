@@ -223,6 +223,33 @@ def test_indicador_declara_as_ressalvas_conhecidas():
         assert definicao.ressalvas, f"{definicao.indicador_id} sem ressalva declarada"
 
 
+def test_texto_publico_cabe_numa_tela_de_celular():
+    """Verbosidade testada em celular real: descrição longa vira parede de texto.
+
+    Limites vindos de leitura a 360 px — a descrição fica logo abaixo do número,
+    e passar de uma linha e meia empurra a comparação para fora da tela.
+    """
+    for definicao in fato_indicador.INDICADORES:
+        assert len(definicao.descricao_publica) <= 80, (
+            f"{definicao.indicador_id}: descrição com {len(definicao.descricao_publica)} "
+            "caracteres — o leitor lê isso no celular, entre o número e a comparação"
+        )
+        assert len(definicao.formula_legivel) <= 220, definicao.indicador_id
+        assert len(definicao.ressalvas) <= 380, definicao.indicador_id
+
+
+def test_educacao_avisa_que_nao_e_por_aluno():
+    """A confusão mais provável do MVP: "por morador" lido como "por aluno".
+
+    Saúde é universal, escola atende quem estuda — dividir os dois pelo mesmo
+    denominador convida à comparação errada. Enquanto o Censo Escolar (M1.4) não
+    entra, o texto precisa dizer isso de frente, não em nota de rodapé.
+    """
+    educacao = next(i for i in fato_indicador.INDICADORES if "educacao" in i.indicador_id)
+    assert "aluno" in educacao.ressalvas.lower()
+    assert "aluno" in educacao.formula_legivel.lower()
+
+
 def test_formula_legivel_nao_usa_jargao_de_banco():
     """PRODUTO §5: linguagem de leigo. 'SELECT' e 'JOIN' não entram no texto público."""
     proibidos = ("select", "join", "where", "group by", "parquet")
