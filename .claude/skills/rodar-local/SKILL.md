@@ -144,6 +144,20 @@ Test-NetConnection -ComputerName 10.5.0.2 -Port 4321
 | `/municipio/{uf}/{slug}` | página do município (ex.: `/municipio/rr/boa-vista`) |
 | `/dados/municipio/{codigo}.json` | o JSON bruto, servido direto de `public/` |
 
+### Servidor que precisa sobreviver à sessão do agente
+
+Se um agente subir o servidor como tarefa em background, ele **é encerrado a cada ciclo do
+harness** — a pessoa fica testando no celular e a página morre no meio. Para servidor que
+precisa durar, subir destacado:
+
+```powershell
+$p = Start-Process npm.cmd -ArgumentList "run","preview:rede" `
+     -WorkingDirectory "C:\...\praca_publica\site" -WindowStyle Minimized -PassThru
+"PID: $($p.Id)"     # guarde para encerrar depois
+```
+
+**Linux/macOS**: `nohup npm run preview:rede > /tmp/praca-site.log 2>&1 &`
+
 ### Encerrar o servidor
 
 **Windows**: `Ctrl+C` no terminal; se ficou órfão em background,
