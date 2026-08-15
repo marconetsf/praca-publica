@@ -192,6 +192,45 @@ def test_indicadores_declarados_tem_metodologia_completa():
         assert definicao.direcao_melhor in ("maior", "menor", "neutro")
 
 
+# --------------------------------------------------- procedência (requisito de todo número)
+
+
+def test_todo_indicador_explica_como_foi_calculado():
+    """Regra 1: nenhum número publicado sem dizer de onde veio e como foi feito.
+
+    Isto é contrato, não documentação: indicador novo que não preencher estes
+    campos quebra o teste antes de chegar à página.
+    """
+    for definicao in fato_indicador.INDICADORES:
+        assert definicao.fonte, f"{definicao.indicador_id} sem fonte"
+        assert definicao.orgao, f"{definicao.indicador_id} sem órgão responsável"
+        assert definicao.formula_legivel, f"{definicao.indicador_id} sem fórmula em português"
+        assert definicao.formula_sql, f"{definicao.indicador_id} sem fórmula técnica"
+
+
+def test_todo_indicador_aponta_para_o_dado_bruto_na_fonte():
+    """O leitor precisa poder conferir na origem, não numa cópia nossa."""
+    for definicao in fato_indicador.INDICADORES:
+        url = definicao.url_dado_bruto(codigo_ibge="1400100", ano=2024)
+        assert url.startswith("https://"), definicao.indicador_id
+        assert "1400100" in url, "a URL precisa levar ao dado DAQUELE município"
+        assert "2024" in url, "e daquele ano"
+
+
+def test_indicador_declara_as_ressalvas_conhecidas():
+    """~25% das declarações municipais têm inconsistência — o leitor merece saber."""
+    for definicao in fato_indicador.INDICADORES:
+        assert definicao.ressalvas, f"{definicao.indicador_id} sem ressalva declarada"
+
+
+def test_formula_legivel_nao_usa_jargao_de_banco():
+    """PRODUTO §5: linguagem de leigo. 'SELECT' e 'JOIN' não entram no texto público."""
+    proibidos = ("select", "join", "where", "group by", "parquet")
+    for definicao in fato_indicador.INDICADORES:
+        texto = definicao.formula_legivel.lower()
+        assert not any(p in texto for p in proibidos), definicao.indicador_id
+
+
 def test_dim_indicador_e_gerada_a_partir_da_mesma_fonte(tmp_path):
     destino = tmp_path / "dim_indicador.parquet"
     fato_indicador.construir_dim_indicador(destino)

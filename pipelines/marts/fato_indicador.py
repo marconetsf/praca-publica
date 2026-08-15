@@ -29,6 +29,13 @@ MINIMO_GRUPO = 5
 
 @dataclass(frozen=True)
 class Indicador:
+    """Definição de um indicador — inclui a procedência, que é obrigatória.
+
+    "Como esse cálculo foi feito?" é feature de todo número publicado, não de
+    alguns. Por isso os campos de procedência moram aqui, ao lado da regra de
+    cálculo: indicador novo sem eles quebra o teste antes de virar página.
+    """
+
     indicador_id: str
     nome_exibicao: str
     descricao_publica: str
@@ -37,14 +44,30 @@ class Indicador:
     anexo: str
     coluna: str
     conta: str
+    formula_legivel: str  # em português, para o leitor — sem jargão de banco
+    ressalvas: str  # o que o leitor precisa saber antes de tirar conclusão
     fonte: str = "SICONFI/DCA"
+    orgao: str = "Tesouro Nacional"
     versao_metodologia: int = 1
 
     @property
     def formula_sql(self) -> str:
+        """A fórmula técnica, para quem quiser auditar ou reproduzir."""
         return (
             f"valor de '{self.conta}' no {self.anexo} (coluna '{self.coluna}') "
             "dividido pela população do município no ano de referência"
+        )
+
+    def url_dado_bruto(self, *, codigo_ibge: str, ano: int) -> str:
+        """Link para o dado deste município na API pública do Tesouro.
+
+        Abre no navegador e devolve o JSON da declaração — o leitor confere na
+        origem, não numa cópia nossa. É a diferença entre "confie em nós" e
+        "veja você mesmo".
+        """
+        return (
+            "https://apidatalake.tesouro.gov.br/ords/siconfi/tt/dca"
+            f"?an_exercicio={ano}&id_ente={codigo_ibge}"
         )
 
 
@@ -62,6 +85,19 @@ INDICADORES: tuple[Indicador, ...] = (
         anexo="DCA-Anexo I-E",
         coluna="Despesas Pagas",
         conta="10 - Saúde",
+        formula_legivel=(
+            "Pegamos o total que a prefeitura pagou na função Saúde durante o ano, "
+            "conforme ela mesma declarou ao Tesouro Nacional, e dividimos pelo número "
+            "de moradores da cidade. Usamos o valor pago, não o empenhado — empenhado "
+            "é o compromisso de gastar; pago é o dinheiro que efetivamente saiu."
+        ),
+        ressalvas=(
+            "O valor é o que a prefeitura declarou, e o Tesouro publica sem auditar: "
+            "cerca de 1 em cada 4 declarações municipais tem alguma inconsistência. "
+            "Cidades pequenas costumam ter valor por morador mais alto, porque custos "
+            "fixos se dividem entre menos gente — por isso a comparação é entre cidades "
+            "de porte parecido."
+        ),
     ),
     Indicador(
         indicador_id="siconfi_despesa_educacao_pc",
@@ -75,6 +111,17 @@ INDICADORES: tuple[Indicador, ...] = (
         anexo="DCA-Anexo I-E",
         coluna="Despesas Pagas",
         conta="12 - Educação",
+        formula_legivel=(
+            "Pegamos o total que a prefeitura pagou na função Educação durante o ano, "
+            "conforme ela mesma declarou ao Tesouro Nacional, e dividimos pelo número "
+            "de moradores da cidade — não pelo número de alunos."
+        ),
+        ressalvas=(
+            "Dividimos por morador, e não por aluno, para que o número possa ser "
+            "comparado com os outros da página. Cidades com muitas crianças tendem a "
+            "gastar mais por morador sem que isso signifique gastar mais por aluno. "
+            "O valor é declarado pela prefeitura e publicado pelo Tesouro sem auditoria."
+        ),
     ),
     Indicador(
         indicador_id="siconfi_receita_impostos_pc",
@@ -88,6 +135,18 @@ INDICADORES: tuple[Indicador, ...] = (
         anexo="DCA-Anexo I-C",
         coluna="Receitas Brutas Realizadas",
         conta="1.1.1.0.00.0.0 - Impostos",
+        formula_legivel=(
+            "Somamos os impostos que a própria prefeitura arrecadou no ano — como IPTU "
+            "e ISS — e dividimos pelo número de moradores. Repasses da União e do estado "
+            "ficam de fora, porque a ideia é mostrar o que a cidade arrecada sozinha."
+        ),
+        ressalvas=(
+            "Arrecadar pouco por morador não significa má gestão: depende muito do "
+            "tamanho da economia local e do valor dos imóveis. A maior parte do dinheiro "
+            "da maioria dos municípios brasileiros vem de repasses, não de impostos "
+            "próprios. Alguns municípios declararam valor negativo nesta conta em 2024 — "
+            "quando isso acontece, não publicamos o número."
+        ),
     ),
 )
 
@@ -167,21 +226,25 @@ def construir_dim_indicador(destino) -> int:
     con = parquet.conectar(saida)
     con.execute(
         "CREATE TABLE d (indicador_id VARCHAR, nome_exibicao VARCHAR, "
-        "descricao_publica VARCHAR, fonte VARCHAR, unidade VARCHAR, "
-        "direcao_melhor VARCHAR, versao_metodologia INT, formula_sql VARCHAR)"
+        "descricao_publica VARCHAR, fonte VARCHAR, orgao VARCHAR, unidade VARCHAR, "
+        "direcao_melhor VARCHAR, versao_metodologia INT, formula_sql VARCHAR, "
+        "formula_legivel VARCHAR, ressalvas VARCHAR)"
     )
     con.executemany(
-        "INSERT INTO d VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO d VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [
             (
                 i.indicador_id,
                 i.nome_exibicao,
                 i.descricao_publica,
                 i.fonte,
+                i.orgao,
                 i.unidade,
                 i.direcao_melhor,
                 i.versao_metodologia,
                 i.formula_sql,
+                i.formula_legivel,
+                i.ressalvas,
             )
             for i in INDICADORES
         ],

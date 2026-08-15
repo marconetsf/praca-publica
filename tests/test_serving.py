@@ -40,20 +40,26 @@ INDICADORES = [
         "Gasto com saúde por morador",
         "Quanto a prefeitura pagou...",
         "SICONFI/DCA",
+        "Tesouro Nacional",
         "R$/morador/ano",
         "neutro",
         1,
-        "formula",
+        "formula tecnica",
+        "Pegamos o total pago em saúde e dividimos pelos moradores.",
+        "O valor é declarado pela prefeitura, sem auditoria.",
     ),
     (
         "siconfi_despesa_educacao_pc",
         "Gasto com educação por morador",
         "Quanto...",
         "SICONFI/DCA",
+        "Tesouro Nacional",
         "R$/morador/ano",
         "neutro",
         1,
-        "formula",
+        "formula tecnica",
+        "Pegamos o total pago em educação e dividimos pelos moradores.",
+        "Dividimos por morador, não por aluno.",
     ),
 ]
 
@@ -75,10 +81,11 @@ def marts(tmp_path):
     con.executemany("INSERT INTO f VALUES (?,?,?,?,?,?,?,?)", FATO)
     con.execute(
         "CREATE TABLE i (indicador_id VARCHAR, nome_exibicao VARCHAR, descricao_publica VARCHAR,"
-        " fonte VARCHAR, unidade VARCHAR, direcao_melhor VARCHAR, versao_metodologia INT,"
-        " formula_sql VARCHAR)"
+        " fonte VARCHAR, orgao VARCHAR, unidade VARCHAR, direcao_melhor VARCHAR,"
+        " versao_metodologia INT, formula_sql VARCHAR, formula_legivel VARCHAR,"
+        " ressalvas VARCHAR)"
     )
-    con.executemany("INSERT INTO i VALUES (?,?,?,?,?,?,?,?)", INDICADORES)
+    con.executemany("INSERT INTO i VALUES (?,?,?,?,?,?,?,?,?,?,?)", INDICADORES)
 
     caminhos = {}
     for tabela, nome in (("d", "dim"), ("f", "fato"), ("i", "dim_indicador")):
@@ -171,6 +178,36 @@ def test_posicao_relativa_ao_grupo_e_textual(gerados):
         if i["id"] == "siconfi_despesa_educacao_pc"
     )
     assert educacao["comparacao"]["texto"] == "1º entre os 7 parecidos"
+
+
+# ------------------------------------------------- "como esse cálculo foi feito?"
+
+
+def test_todo_indicador_traz_o_bloco_de_procedencia(gerados):
+    """Feature de todo número, não de alguns: o bloco é obrigatório no JSON."""
+    for arquivo in (gerados / "municipio").glob("*.json"):
+        dados = json.loads(arquivo.read_text(encoding="utf-8"))
+        for indicador in dados["indicadores"]:
+            p = indicador["procedencia"]
+            assert p["orgao"]
+            assert p["formula_legivel"]
+            assert p["ressalvas"]
+            assert p["url_dado_bruto"].startswith("https://")
+
+
+def test_link_do_dado_bruto_aponta_para_o_proprio_municipio(gerados):
+    """De nada adianta linkar a fonte genérica — o leitor quer a linha dele."""
+    dados = _ler(gerados, "1400100")
+    for indicador in dados["indicadores"]:
+        assert "1400100" in indicador["procedencia"]["url_dado_bruto"]
+        assert "2024" in indicador["procedencia"]["url_dado_bruto"]
+
+
+def test_procedencia_inclui_a_formula_tecnica_para_auditoria(gerados):
+    """Duas fórmulas: a legível para o leitor, a técnica para quem audita."""
+    indicador = _ler(gerados, "1400100")["indicadores"][0]
+    assert indicador["procedencia"]["formula_sql"]
+    assert indicador["procedencia"]["versao_metodologia"] == 1
 
 
 def test_indice_de_busca_lista_os_municipios(gerados):
