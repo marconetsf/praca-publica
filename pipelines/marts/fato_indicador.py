@@ -103,6 +103,10 @@ def _sql_indicador(ind: Indicador, dca: str) -> str:
         FROM '{dca}'
         WHERE anexo = '{ind.anexo}' AND coluna = '{ind.coluna}' AND conta = '{conta}'
           AND valor IS NOT NULL
+          -- receita bruta ou despesa paga negativa é impossível; 31 municípios do
+          -- TO declararam assim em 2024. Regra 4: dado suspeito não é promovido —
+          -- melhor o card faltar do que exibir "-R$ 3.827 por morador"
+          AND valor >= 0
     """
 
 

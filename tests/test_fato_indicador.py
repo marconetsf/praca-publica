@@ -95,6 +95,47 @@ def test_codigo_ibge_continua_varchar_de_7(fato):
     assert all(isinstance(c, str) and len(c) == 7 for c in codigos)
 
 
+def test_valor_negativo_nao_e_publicado(tmp_path):
+    """Receita bruta negativa é impossível — 31 municípios do TO declararam assim.
+
+    Regra 4: dado suspeito não é promovido. Melhor o card faltar do que exibir
+    "-R$ 3.827 por morador", que nenhum leitor consegue interpretar.
+    """
+    linhas = [
+        (2611101, "PE", "DCA-Anexo I-E", "Despesas Pagas", "10 - Saúde", -400_000.0, 400_000),
+        (2607901, "PE", "DCA-Anexo I-E", "Despesas Pagas", "10 - Saúde", 200_000_000.0, 200_000),
+    ]
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE d (cod_ibge BIGINT, uf VARCHAR, anexo VARCHAR, coluna VARCHAR, "
+        "conta VARCHAR, valor DOUBLE, populacao BIGINT)"
+    )
+    con.executemany("INSERT INTO d VALUES (?,?,?,?,?,?,?)", linhas)
+    dca = tmp_path / "dca.parquet"
+    con.execute(f"COPY d TO '{dca.as_posix()}' (FORMAT parquet)")
+
+    con.execute(
+        "CREATE TABLE m (codigo_municipio_ibge VARCHAR, nome VARCHAR, uf VARCHAR, "
+        "regiao VARCHAR, populacao_referencia BIGINT, faixa_porte VARCHAR, "
+        "grupo_comparacao VARCHAR)"
+    )
+    con.executemany("INSERT INTO m VALUES (?,?,?,?,?,?,?)", DIM[:2])
+    dim = tmp_path / "dim.parquet"
+    con.execute(f"COPY m TO '{dim.as_posix()}' (FORMAT parquet)")
+
+    destino = tmp_path / "fato.parquet"
+    fato_indicador.construir(dca, dim, destino, ano=2024)
+
+    codigos = [
+        linha[0]
+        for linha in duckdb.sql(
+            f"SELECT codigo_municipio_ibge FROM '{destino.as_posix()}'"
+        ).fetchall()
+    ]
+    assert "2611101" not in codigos, "valor negativo não pode virar card"
+    assert "2607901" in codigos
+
+
 # ---------------------------------------------------------------- ausência
 
 
