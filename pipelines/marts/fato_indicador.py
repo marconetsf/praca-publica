@@ -22,9 +22,25 @@ import argparse
 from dataclasses import dataclass
 
 from pipelines.common import parquet, storage
+from pipelines.marts.contrato import Cobertura, Confiabilidade, Contrato
 
 # abaixo disso a mediana do grupo é instável demais para virar referência pública
 MINIMO_GRUPO = 5
+
+# A DCA é anual e sai com cerca de um ano de atraso; o exercício 2024 foi
+# publicado ao longo de 2025. Vale para os três indicadores desta fonte.
+CONTRATO_DCA = Contrato(
+    cobertura=Cobertura(
+        anos=(2024,),  # cresce conforme coletamos outros exercícios
+        periodicidade="anual",
+        defasagem_meses=12,
+    ),
+    confiabilidade=Confiabilidade(
+        # o Tesouro publica sem auditar e ~25% das declarações têm inconsistência;
+        # o gate de sanidade barra o impossível, o resto vira ressalva no card
+        campo_ignorado=None,
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -46,6 +62,10 @@ class Indicador:
     conta: str
     formula_legivel: str  # em português, para o leitor — sem jargão de banco
     ressalvas: str  # o que o leitor precisa saber antes de tirar conclusão
+    # A sistemática de adoção: onde/quando a métrica existe e quando ela não é
+    # confiável. Ver pipelines/marts/contrato.py — supressão, lacuna e aviso
+    # saem daqui, sem `if` espalhado por indicador.
+    contrato: Contrato
     fonte: str = "SICONFI/DCA"
     orgao: str = "Tesouro Nacional"
     versao_metodologia: int = 1
@@ -91,6 +111,7 @@ INDICADORES: tuple[Indicador, ...] = (
             "Cidade pequena tende a gastar mais por morador — custo fixo dividido "
             "entre menos gente. Por isso a comparação é só com cidades de porte parecido."
         ),
+        contrato=CONTRATO_DCA,
     ),
     Indicador(
         indicador_id="siconfi_despesa_educacao_pc",
@@ -114,6 +135,7 @@ INDICADORES: tuple[Indicador, ...] = (
             "crianças aparece gastando mais por morador sem gastar mais por aluno. "
             "O gasto por aluno depende do número de matrículas, que entra em versão futura."
         ),
+        contrato=CONTRATO_DCA,
     ),
     Indicador(
         indicador_id="siconfi_receita_impostos_pc",
@@ -133,6 +155,7 @@ INDICADORES: tuple[Indicador, ...] = (
             "valor dos imóveis. Na maioria das cidades brasileiras, o dinheiro vem "
             "principalmente de repasses, não de impostos próprios."
         ),
+        contrato=CONTRATO_DCA,
     ),
 )
 

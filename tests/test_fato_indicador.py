@@ -14,7 +14,7 @@ municípios (Norte acima de 500 mil). Mediana de 4 é frágil demais para virar
 import duckdb
 import pytest
 
-from pipelines.marts import fato_indicador
+from pipelines.marts import contrato, fato_indicador
 
 # (cod_ibge, uf, anexo, coluna, conta, valor, populacao)
 DCA = [
@@ -181,6 +181,27 @@ def test_posicao_no_grupo_tem_denominador(fato):
 
 
 # ---------------------------------------------------------------- metodologia
+
+
+def test_todo_indicador_declara_seu_contrato():
+    """A sistemática: indicador novo sem contrato não é aceito.
+
+    Cobertura (anos, universo, defasagem) e confiabilidade (mínimo, ignorado,
+    quebras) precisam ser declaradas — é delas que saem supressão, lacuna e
+    aviso, sem condicional espalhada por indicador.
+    """
+    for definicao in fato_indicador.INDICADORES:
+        assert definicao.contrato.cobertura.anos, definicao.indicador_id
+        assert definicao.contrato.cobertura.periodicidade in contrato.PERIODICIDADES
+        assert definicao.contrato.confiabilidade is not None
+
+
+def test_avisos_do_contrato_saem_em_portugues():
+    """O contrato não guarda só metadado: gera o texto que a página exibe."""
+    for definicao in fato_indicador.INDICADORES:
+        for aviso in definicao.contrato.avisos_para_o_leitor():
+            assert aviso[0].isupper(), f"{definicao.indicador_id}: aviso sem frase"
+            assert aviso.endswith("."), f"{definicao.indicador_id}: aviso sem ponto final"
 
 
 def test_indicadores_declarados_tem_metodologia_completa():
