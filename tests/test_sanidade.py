@@ -124,6 +124,72 @@ def test_sem_base_de_calculo_nao_avalia_piso(tmp_path):
     assert not any("piso" in a["check"] for a in achados)
 
 
+# ---------------------------------------------------------------- mitigação
+
+
+def test_achado_ja_barrado_pelo_fato_e_marcado_como_mitigado(tmp_path):
+    """O gate olha o staging; o fato já descarta valor impossível.
+
+    Os 31 municípios do TO com receita negativa são achado real no dado bruto e
+    já não chegam à página. Bloquear a publicação por eles pararia o pipeline
+    para sempre por um problema que está resolvido.
+    """
+    linhas = _municipio_saudavel()
+    linhas[3] = (
+        1400100,
+        *RECEITA,
+        "1.1.0.0.00.0.0 - Impostos, Taxas e Contribuições de Melhoria",
+        -200.0,
+    )
+    # o município publica saúde e educação; só o de impostos foi barrado —
+    # exatamente o caso real dos 31 municípios do TO
+    achados = sanidade.verificar(
+        _dca(tmp_path, linhas),
+        publicados={"1400100": {"siconfi_despesa_saude_pc", "siconfi_despesa_educacao_pc"}},
+    )
+
+    negativo = next(a for a in achados if a["check"] == "valor_negativo")
+    assert negativo["mitigado"] is True, "o indicador afetado não chegou à página"
+
+
+def test_achado_que_chegou_a_pagina_nao_e_mitigado(tmp_path):
+    """Se o valor problemático foi publicado, o bloqueio vale."""
+    linhas = _municipio_saudavel()
+    linhas[1] = (1400100, *DESPESA, "10 - Saúde", -50.0)
+
+    achados = sanidade.verificar(
+        _dca(tmp_path, linhas), publicados={"1400100": {"siconfi_despesa_saude_pc"}}
+    )
+
+    negativo = next(a for a in achados if a["check"] == "valor_negativo")
+    assert negativo["mitigado"] is False
+
+
+def test_sem_informacao_do_publicado_nada_e_mitigado(tmp_path):
+    """Sem saber o que foi ao ar, o gate assume o pior — é o lado seguro."""
+    linhas = _municipio_saudavel()
+    linhas[1] = (1400100, *DESPESA, "10 - Saúde", -50.0)
+    achados = sanidade.verificar(_dca(tmp_path, linhas))
+    assert all(a["mitigado"] is False for a in achados)
+
+
+def test_resumo_separa_critico_publicado_de_mitigado(tmp_path):
+    linhas = _municipio_saudavel()
+    linhas[3] = (
+        1400100,
+        *RECEITA,
+        "1.1.0.0.00.0.0 - Impostos, Taxas e Contribuições de Melhoria",
+        -200.0,
+    )
+    achados = sanidade.verificar(
+        _dca(tmp_path, linhas), publicados={"1400100": {"siconfi_despesa_saude_pc"}}
+    )
+    resumo = sanidade.resumir(achados)
+
+    assert resumo["CRITICO"] >= 1, "continua sendo achado real no dado bruto"
+    assert resumo["bloqueiam"] == 0, "mas não bloqueia: não chegou à página"
+
+
 # ---------------------------------------------------------------- relatório
 
 
