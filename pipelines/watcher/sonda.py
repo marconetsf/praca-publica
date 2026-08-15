@@ -11,6 +11,7 @@ Uso: python -m pipelines.watcher.sonda
 """
 
 import json
+import os
 from datetime import UTC, datetime
 
 import requests
@@ -47,8 +48,15 @@ def alvos_de_sonda(fontes: dict) -> dict[str, dict]:
             "detectar_mudanca": sonda_declarada.get("detectar_mudanca", True),
             # cadeia TLS incompleta na origem não pode virar "fonte caiu"
             "ca": config.get("tls_ca"),
+            # fonte que recusa conexão de datacenter não pode virar alarme diário
+            "bloqueia_datacenter": sonda_declarada.get("bloqueia_datacenter", False),
         }
     return alvos
+
+
+def em_datacenter() -> bool:
+    """Estamos rodando no runner do Actions (rede de datacenter, fora do Brasil)?"""
+    return bool(os.environ.get("GITHUB_ACTIONS"))
 
 
 def _requisitar_real(metodo: str, url: str, ca: str | None = None, **kwargs) -> requests.Response:
@@ -168,8 +176,22 @@ def executar(*, fontes: dict | None = None, requisitar=None) -> dict:
     alvos = alvos_de_sonda(fontes if fontes is not None else carregar_fontes())
     estado = _carregar_estado()
     indisponiveis = 0
+    nao_verificadas = 0
 
     for nome, alvo in alvos.items():
+        if alvo["bloqueia_datacenter"] and em_datacenter():
+            # tentar daqui produziria "indisponível" todo dia para uma fonte no ar;
+            # o estado guarda o motivo para que silenciar não vire esconder
+            estado[nome] = {
+                "nao_verificavel": True,
+                "motivo": "fonte recusa conexão de datacenter; sondar de rede brasileira",
+                "falhas_consecutivas": 0,
+                "visto_em": datetime.now(UTC).isoformat(),
+            }
+            nao_verificadas += 1
+            print(f"  não verificada daqui: {nome} (bloqueia datacenter)")
+            continue
+
         atual = sondar(
             alvo["url"], status_ok=alvo["status_ok"], ca=alvo["ca"], requisitar=requisitar
         )
@@ -182,12 +204,19 @@ def executar(*, fontes: dict | None = None, requisitar=None) -> dict:
             print(f"  indisponível: {nome} -> {atual.get('erro') or atual.get('status')}")
 
     _salvar_estado(estado)
-    return {"sondadas": len(alvos), "indisponiveis": indisponiveis}
+    return {
+        "sondadas": len(alvos) - nao_verificadas,
+        "indisponiveis": indisponiveis,
+        "nao_verificadas": nao_verificadas,
+    }
 
 
 def main() -> None:
     resumo = executar()
-    print(f"{resumo['sondadas']} fontes sondadas, {resumo['indisponiveis']} indisponíveis")
+    recado = f"{resumo['sondadas']} fontes sondadas, {resumo['indisponiveis']} indisponíveis"
+    if resumo["nao_verificadas"]:
+        recado += f", {resumo['nao_verificadas']} não verificáveis desta rede"
+    print(recado)
 
 
 if __name__ == "__main__":

@@ -84,6 +84,12 @@ inep:
   tls_ca: config/ca/inep.pem
   sonda:
     url: https://download.inep.gov.br/dados_abertos/microdados_censo_escolar_2024.zip
+    # O servidor recusa conexão vinda de datacenter: "Connection reset by peer" em
+    # 19 execuções consecutivas do Actions (26/07 a 14/08/2026), enquanto de rede
+    # brasileira responde 12/12 com HTTP 200. A fonte está no ar — inalcançável de lá.
+    # Sondar dali produziria um alarme falso por dia. Vale para o espelho também:
+    # o INEP foi espelhado da máquina local, e re-espelhar exige rede brasileira.
+    bloqueia_datacenter: true
   # Onda 1 do M0.5: o INEP apagou séries em 2022 e nunca republicou completas.
   # Confirmado em 2026-07-26: IDEB de 2019 e 2021 já responde 404 nestas URLs —
   # sobrou só 2023. Espelhar o que ainda existe, antes das eleições.
