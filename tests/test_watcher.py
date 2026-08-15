@@ -106,6 +106,75 @@ def test_alvo_sem_tls_ca_fica_com_none():
     assert sonda.alvos_de_sonda(fontes)["x"]["ca"] is None
 
 
+def test_fonte_pode_declarar_que_bloqueia_datacenter():
+    """O download.inep.gov.br responde no Brasil e reseta a conexão vinda do Actions."""
+    fontes = {"inep": {"sonda": {"url": "https://x", "bloqueia_datacenter": True}}}
+    assert sonda.alvos_de_sonda(fontes)["inep"]["bloqueia_datacenter"] is True
+
+
+def test_por_padrao_nenhuma_fonte_bloqueia_datacenter():
+    fontes = {"x": {"sonda": {"url": "https://x"}}}
+    assert sonda.alvos_de_sonda(fontes)["x"]["bloqueia_datacenter"] is False
+
+
+def test_em_ci_a_fonte_bloqueada_nao_e_sondada(storage_local, monkeypatch):
+    """Sondar dali só produziria alarme falso diário — e o operador desliga o canal."""
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    enviados = []
+    monkeypatch.setattr(
+        sonda, "alertar", lambda msg, severidade="INFO": enviados.append((severidade, msg))
+    )
+    fontes = {"inep": {"sonda": {"url": "https://x", "bloqueia_datacenter": True}}}
+    chamadas = []
+
+    def requisitar(metodo, url, **kwargs):
+        chamadas.append(url)
+        raise ConnectionError("Connection reset by peer")
+
+    resumo = sonda.executar(fontes=fontes, requisitar=requisitar)
+
+    assert chamadas == [], "não deveria nem tentar a conexão"
+    assert enviados == []
+    assert resumo["indisponiveis"] == 0
+    assert resumo["nao_verificadas"] == 1
+
+
+def test_em_ci_o_estado_registra_o_motivo(storage_local, monkeypatch):
+    """Silenciar não pode virar esconder: o estado diz por que não foi verificada."""
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(sonda, "alertar", lambda *a, **k: True)
+    fontes = {"inep": {"sonda": {"url": "https://x", "bloqueia_datacenter": True}}}
+
+    sonda.executar(fontes=fontes, requisitar=lambda *a, **k: RespostaFake(200))
+
+    estado = json.loads(storage.ler_bytes(sonda.caminho_estado()).decode("utf-8"))["inep"]
+    assert estado["nao_verificavel"] is True
+    assert "datacenter" in estado["motivo"]
+    assert estado["falhas_consecutivas"] == 0, "não pode acumular falha do que não foi tentado"
+
+
+def test_fora_de_ci_a_fonte_bloqueada_e_sondada_normalmente(storage_local, monkeypatch):
+    """Rodando no Brasil a sonda vale — é lá que a vigilância de verdade acontece."""
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    monkeypatch.setattr(sonda, "alertar", lambda *a, **k: True)
+    fontes = {"inep": {"sonda": {"url": "https://x", "bloqueia_datacenter": True}}}
+
+    resumo = sonda.executar(
+        fontes=fontes, requisitar=lambda *a, **k: RespostaFake(200, {"ETag": "v1"})
+    )
+
+    assert resumo["sondadas"] == 1
+    assert resumo["nao_verificadas"] == 0
+    estado = json.loads(storage.ler_bytes(sonda.caminho_estado()).decode("utf-8"))["inep"]
+    assert estado["etag"] == "v1"
+
+
+def test_inep_esta_marcado_no_catalogo():
+    from pipelines.common.config import fontes
+
+    assert sonda.alvos_de_sonda(fontes())["inep"]["bloqueia_datacenter"] is True
+
+
 def test_status_ok_declarado_e_preservado():
     """401 no Portal da Transparência significa 'de pé, exigindo token'."""
     fontes = {"pt": {"sonda": {"url": "https://x", "status_ok": [200, 401]}}}

@@ -1,8 +1,11 @@
 # Estado atual e fila de trabalho
 
 > **Comece por aqui.** Este arquivo diz onde o projeto parou e o que fazer em seguida.
-> Última atualização: **27/07/2026**. Se a data estiver velha, confirme os fatos abaixo
+> Última atualização: **15/08/2026**. Se a data estiver velha, confirme os fatos abaixo
 > antes de confiar neles (`gh run list`, `git log`, e o manifesto no R2).
+>
+> ⚠️ **Estamos dentro do congelamento eleitoral** (SEGURANCA §6.3: de agosto à diplomação).
+> Nenhuma feature nova de destaque ou ranking — só atualização de dados e correções.
 
 ## 1. Onde paramos
 
@@ -12,7 +15,7 @@ Main protegida: **PR obrigatório** (0 aprovações, CI verde, sem force-push). 
 | Marco | Estado |
 |---|---|
 | **M0.1–M0.7** | ✅ código completo e validado contra os serviços reais |
-| **M0 "pronto"** | ⏳ falta o watcher acumular **3 dias seguidos de execução agendada** |
+| **M0 "pronto"** | ✅ **critério cumprido** — watcher com 10 execuções agendadas consecutivas (04/08 a 14/08), todas `success`; ingestão mensal do SICONFI rodou sozinha em 05/08 |
 | **M0.5 onda 1** (prazo 30/09) | 🟡 INEP espelhado; **SNIS abandonado** com justificativa (ver §4) |
 | **M0.5 onda 2** (prazo 30/11) | 🟡 DataSUS espelhado; falta CAGED/RAIS e séries SICONFI |
 | **M1 em diante** | ❌ não começou |
@@ -34,19 +37,16 @@ Main protegida: **PR obrigatório** (0 aprovações, CI verde, sem force-push). 
 
 ## 2. Fila de trabalho, em ordem
 
-### 1. Confirmar o M0 como pronto — sem código, só verificação
-O watcher rodou **uma vez, por disparo manual** (26/07). **Nenhuma execução agendada até 27/07.**
-A contagem começa na primeira execução do cron. Verificar com:
+### 1. ~~Confirmar o M0~~ — feito em 15/08/2026
+10 execuções agendadas consecutivas do watcher, todas `success`, e a ingestão mensal do SICONFI
+disparou sozinha em 05/08 (dia 5, como configurado) sem intervenção. Nenhum run com falha em
+todo o período. Conferir a qualquer momento com:
 
 ```bash
-gh run list --workflow="Watcher de fontes" --event schedule
+gh run list --event schedule --limit 12
 ```
 
-Três execuções agendadas consecutivas e bem-sucedidas fecham o critério do ESCOPO §3.
-Se o cron não disparar (o Actions pula execuções silenciosamente), é sintoma — e é exatamente
-o que o healthchecks.io existe para detectar (§3).
-
-### 2. Terminar a onda 2 do M0.5 — prazo 30/11/2026
+### 2. Terminar a onda 2 do M0.5 — prazo 30/11/2026 (a onda 1 vence **30/09**, faltam ~6 semanas)
 1. **CAGED 2026** já está declarado no `fontes.yaml`, ~280 MB, é só rodar:
    ```bash
    gh workflow run "Espelho defensivo" --ref main -f fonte=rais_caged
@@ -90,6 +90,12 @@ Ver ESCOPO §3.
   nenhuma estar fora do ar. Ver a convenção no `CLAUDE.md`.
 
 ## 5. Armadilhas já encontradas (não repetir)
+
+- **O `download.inep.gov.br` recusa conexão de datacenter.** `Connection reset by peer` em 19
+  execuções consecutivas do Actions (26/07 a 14/08/2026); de rede brasileira responde 12/12 com
+  HTTP 200. A fonte está no ar — inalcançável de lá. Marcado como `bloqueia_datacenter: true` no
+  YAML, o que faz o watcher pular a sonda em CI. **Consequência para o M1.4: o pipeline do INEP
+  não vai rodar no Actions** — precisa de máquina em rede brasileira (ou o VPS da Fase 2).
 
 - O `LIST` do FTP do DataSUS e do PDET vem em **formato MS-DOS**, não Unix.
 - O FTP do MTPS devolve **nomes de arquivo em latin-1** (`ftp_encoding` no YAML).
