@@ -193,44 +193,95 @@ def _sql_indicador(ind: Indicador, dca: str) -> str:
     """
 
 
-def construir(dca_parquet, dim_parquet, destino, *, ano: int) -> int:
-    """Monta o fato para um exercício e devolve o nº de linhas."""
+def _minimos_declarados() -> dict[str, int | None]:
+    """O denominador mínimo de cada indicador, vindo do contrato."""
+    return {i.indicador_id: i.contrato.confiabilidade.denominador_minimo for i in INDICADORES}
+
+
+def _sql_supressao(minimos: dict[str, int | None]) -> str:
+    """CASE que zera o valor onde o denominador é pequeno demais.
+
+    A supressão acontece **antes** da mediana: valor instável não pode sair do
+    card e continuar servindo de referência para os vizinhos.
+    """
+    casos = " ".join(
+        f"WHEN indicador_id = '{indicador}' AND denominador < {minimo} THEN TRUE"
+        for indicador, minimo in minimos.items()
+        if minimo is not None
+    )
+    return f"CASE {casos} ELSE FALSE END" if casos else "FALSE"
+
+
+def construir(
+    dca_parquet, dim_parquet, destino, *, ano: int, minimos: dict[str, int | None] | None = None
+) -> int:
+    """Monta o fato para um exercício e devolve o nº de linhas.
+
+    `minimos` sobrescreve os denominadores mínimos do contrato — existe para o
+    teste exercitar a supressão sem depender de qual indicador a declara hoje.
+    """
     dca = parquet._posix(dca_parquet)
     dim = parquet._posix(dim_parquet)
     saida = parquet._posix(destino)
     con = parquet.conectar(dca, dim, saida)
 
+    minimos = _minimos_declarados() if minimos is None else minimos
+    motivos = {i.indicador_id: i.contrato.confiabilidade.motivo_supressao for i in INDICADORES}
+
     bruto = "\n            UNION ALL\n".join(_sql_indicador(i, dca) for i in INDICADORES)
 
     con.execute(f"""
         CREATE TABLE base AS
-        WITH bruto AS ({bruto})
-        SELECT
-            b.codigo_municipio_ibge,
-            {ano} AS ano,
-            b.indicador_id,
-            b.versao_metodologia,
-            b.valor_bruto / m.populacao_referencia AS valor,
-            m.grupo_comparacao
-        FROM bruto b
-        -- INNER JOIN: município fora da dimensão não entra; município da dimensão
-        -- que não declarou simplesmente não tem linha (regra 4: ausência ≠ zero)
-        JOIN '{dim}' m USING (codigo_municipio_ibge)
-        WHERE m.populacao_referencia > 0
+        WITH bruto AS ({bruto}),
+        com_denominador AS (
+            SELECT
+                b.codigo_municipio_ibge,
+                {ano} AS ano,
+                b.indicador_id,
+                b.versao_metodologia,
+                b.valor_bruto / m.populacao_referencia AS valor,
+                -- guardado para auditoria: dá para refazer a conta sem adivinhar
+                m.populacao_referencia AS denominador,
+                m.grupo_comparacao
+            FROM bruto b
+            -- INNER JOIN: município fora da dimensão não entra; município da dimensão
+            -- que não declarou simplesmente não tem linha (regra 4: ausência ≠ zero)
+            JOIN '{dim}' m USING (codigo_municipio_ibge)
+            WHERE m.populacao_referencia > 0
+        )
+        SELECT *, {_sql_supressao(minimos)} AS suprimido FROM com_denominador
     """)
+
+    padrao = "'valor instável para esta base de cálculo'"
+    motivo_sql = " ".join(
+        f"WHEN indicador_id = '{indicador}' "
+        f"""THEN '{motivos[indicador].replace("'", "''")}'"""
+        for indicador, minimo in minimos.items()
+        if minimo is not None and motivos.get(indicador)
+    )
+    # CASE sem WHEN é erro de sintaxe: sem motivo declarado, vai só o texto padrão
+    motivo_case = f"CASE {motivo_sql} ELSE {padrao} END" if motivo_sql else padrao
 
     con.execute(f"""
         COPY (
             SELECT
-                codigo_municipio_ibge, ano, indicador_id, versao_metodologia, valor,
+                codigo_municipio_ibge, ano, indicador_id, versao_metodologia,
+                -- suprimido publica ausência com motivo, não número
+                CASE WHEN suprimido THEN NULL ELSE valor END AS valor,
+                denominador,
+                CASE WHEN suprimido THEN {motivo_case} END AS motivo_supressao,
                 CASE WHEN n_grupo >= {MINIMO_GRUPO} THEN mediana END AS mediana_grupo,
                 n_grupo,
                 CASE WHEN n_grupo >= {MINIMO_GRUPO} THEN posicao END AS posicao_grupo,
                 grupo_comparacao
             FROM (
                 SELECT *,
-                    median(valor) OVER (PARTITION BY indicador_id, grupo_comparacao) AS mediana,
-                    count(*)     OVER (PARTITION BY indicador_id, grupo_comparacao) AS n_grupo,
+                    -- as janelas ignoram o suprimido: valor instável sai do card E
+                    -- sai da referência dos vizinhos, senão contaminaria a mediana
+                    median(valor) FILTER (WHERE NOT suprimido)
+                        OVER (PARTITION BY indicador_id, grupo_comparacao) AS mediana,
+                    count(*) FILTER (WHERE NOT suprimido)
+                        OVER (PARTITION BY indicador_id, grupo_comparacao) AS n_grupo,
                     rank() OVER (
                         PARTITION BY indicador_id, grupo_comparacao ORDER BY valor DESC
                     ) AS posicao

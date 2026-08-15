@@ -136,6 +136,81 @@ def test_valor_negativo_nao_e_publicado(tmp_path):
     assert "2607901" in codigos
 
 
+# ---------------------------------------------------------------- supressão por imprecisão
+
+
+def _fato_com_minimo(tmp_path, minimo, populacoes):
+    """Monta um fato onde o indicador de saúde exige denominador mínimo."""
+    linhas = [
+        (int(cod), "PE", "DCA-Anexo I-E", "Despesas Pagas", "10 - Saúde", 100_000.0, pop)
+        for cod, pop in populacoes
+    ]
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE d (cod_ibge BIGINT, uf VARCHAR, anexo VARCHAR, coluna VARCHAR, "
+        "conta VARCHAR, valor DOUBLE, populacao BIGINT)"
+    )
+    con.executemany("INSERT INTO d VALUES (?,?,?,?,?,?,?)", linhas)
+    dca = tmp_path / "dca.parquet"
+    con.execute(f"COPY d TO '{dca.as_posix()}' (FORMAT parquet)")
+
+    con.execute(
+        "CREATE TABLE m (codigo_municipio_ibge VARCHAR, nome VARCHAR, uf VARCHAR, "
+        "regiao VARCHAR, populacao_referencia BIGINT, faixa_porte VARCHAR, "
+        "grupo_comparacao VARCHAR)"
+    )
+    con.executemany(
+        "INSERT INTO m VALUES (?,?,?,?,?,?,?)",
+        [(cod, f"M{cod}", "PE", "NE", pop, "faixa", "NE|faixa") for cod, pop in populacoes],
+    )
+    dim = tmp_path / "dim.parquet"
+    con.execute(f"COPY m TO '{dim.as_posix()}' (FORMAT parquet)")
+
+    destino = tmp_path / "fato.parquet"
+    fato_indicador.construir(
+        dca, dim, destino, ano=2024, minimos={"siconfi_despesa_saude_pc": minimo}
+    )
+    return duckdb.sql(f"SELECT * FROM '{destino.as_posix()}' ORDER BY codigo_municipio_ibge")
+
+
+def test_denominador_pequeno_suprime_o_valor(tmp_path):
+    """Contrato declarou mínimo 1.000: a cidade de 500 não publica número."""
+    populacoes = [("2600001", 500), ("2600002", 5000), ("2600003", 6000)]
+    fato = _fato_com_minimo(tmp_path, 1000, populacoes)
+
+    linhas = {linha[0]: linha for linha in fato.fetchall()}
+    colunas = fato.columns
+    pequena = dict(zip(colunas, linhas["2600001"], strict=True))
+
+    assert pequena["valor"] is None, "valor instável não pode ser publicado"
+    assert pequena["motivo_supressao"]
+
+
+def test_suprimido_nao_contamina_a_mediana_do_grupo(tmp_path):
+    """O valor instável sai do card E sai da referência dos outros."""
+    populacoes = [("2600001", 500), ("2600002", 5000), ("2600003", 6000)]
+    fato = _fato_com_minimo(tmp_path, 1000, populacoes)
+
+    colunas = fato.columns
+    grandes = [
+        dict(zip(colunas, linha, strict=True)) for linha in fato.fetchall() if linha[0] != "2600001"
+    ]
+    assert all(g["n_grupo"] == 2 for g in grandes), "a suprimida não entra na conta"
+
+
+def test_sem_minimo_declarado_nada_e_suprimido(tmp_path):
+    populacoes = [("2600001", 10), ("2600002", 5000)]
+    fato = _fato_com_minimo(tmp_path, None, populacoes)
+    assert all(linha[fato.columns.index("valor")] is not None for linha in fato.fetchall())
+
+
+def test_fato_registra_o_denominador_usado(tmp_path):
+    """Auditabilidade: dá para refazer a conta sem adivinhar o divisor."""
+    fato = _fato_com_minimo(tmp_path, None, [("2600001", 5000)])
+    linha = dict(zip(fato.columns, fato.fetchall()[0], strict=True))
+    assert linha["denominador"] == 5000
+
+
 # ---------------------------------------------------------------- ausência
 
 
