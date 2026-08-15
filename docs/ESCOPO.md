@@ -55,7 +55,8 @@ Divergências entre frentes, resolvidas assim:
 | **M3** | Site MVP (5.570 páginas) | 12 dp | fev → abr/2027 |
 | **M4** | Lançamento (soft → público) | 5 dp | abr → mai/2027 |
 | **M5** | Fase 2: CNPJ × contratos | 22 dp | mai → out/2027 |
-| | **Total** | **72 dp** | **lançamento ~mai/2027** |
+| | **Total (Fases 1–2)** | **72 dp** | **lançamento ~mai/2027** |
+| **M6** | Fase 3: eixo parlamentar (§7) | ~20 dp | pós-M5, nunca antes |
 
 ### M0 — Fundações (7 dp)
 0.1 `pyproject.toml` + ruff + pytest; extrair transformações dos `main()` para funções puras (1 dp)
@@ -116,7 +117,7 @@ Divergências entre frentes, resolvidas assim:
 - **Must** (sem isso não há lançamento): M0, M0.5, SICONFI + IBGE nacionais, contratos de schema, mart com ~8 indicadores financeiros+demografia, página municipal + busca + metodologia, soft launch. ≈ **38 dp → lançamento reduzido possível em fev–mar/2027**.
 - **Should** (corta primeiro, volta pós-launch): INEP e DataSUS (estreia só com finanças+demografia), freshness no site, DuckDB-WASM.
 - **Could**: ANEEL e CAGED, comparador, snapshots públicos versionados.
-- **Won't (até pós-M5)**: TSE/Querido Diário/CNEFE (Fase 3), Dagster antecipado, mapas/geo, API pública própria.
+- **Won't (até pós-M5)**: TSE/Querido Diário/CNEFE, **eixo parlamentar (§7)**, Dagster antecipado, mapas/geo, API pública própria.
 
 ## 6. Decisões pendentes (donas do usuário)
 
@@ -124,3 +125,91 @@ Divergências entre frentes, resolvidas assim:
 2. **Associação sem fins lucrativos antes da Fase 2** — separa patrimônio pessoal do risco cível de publicar empresa×contrato. Decisão de maior alavancagem jurídica do projeto. (SEGURANCA §2)
 3. **Token da CGU** — cadastrar (conta gov.br Prata/Ouro) já; destrava a Fase 2 quando chegar.
 4. **BD Pro (R$ 47/mês)** — só se a defasagem de 6 meses do free tier da Base dos Dados incomodar em alguma dimensão; não é necessário para o plano atual.
+
+## 7. Fase 3 — eixo parlamentar (M6, ~20 dp)
+
+> Registrado em 27/07/2026 a pedido da idealização do projeto. **Não é backlog imediato**: é a
+> definição do que o eixo será *quando* for, para que a decisão não seja improvisada sob pressão
+> e para que ninguém precise redesenhar a modelagem depois.
+
+### 7.1 O que responde e por que é outro produto
+
+O produto atual responde **"como está a minha cidade?"**. Este responde **"o que este parlamentar
+fez com dinheiro e mandato?"**. Muda a unidade de análise, o público, o risco jurídico e a régua
+de comparação — por isso é marco próprio, não uma aba a mais na página do município.
+
+### 7.2 Grão e modelagem (a decisão técnica que evita retrabalho)
+
+**A chave canônica do projeto não serve aqui.** Todo o mart da Fase 1 é ancorado em
+`codigo_municipio_ibge`; parlamentar não tem município — tem UF, mandato que atravessa
+legislaturas e partido que muda no meio do caminho. Consequência: **fato separado**, nunca uma
+coluna a mais no fato municipal.
+
+```sql
+-- dim_parlamentar (SCD tipo 2: partido e situação mudam durante o mandato)
+parlamentar_id VARCHAR PK,        -- id nativo da Câmara/Senado, nunca CPF
+nome_parlamentar, nome_civil, casa VARCHAR,   -- 'camara' | 'senado'
+uf, partido_sigla, legislatura INT,
+vigencia_inicio DATE, vigencia_fim DATE,      -- troca de partido gera nova linha
+codigo_candidato_tse VARCHAR                  -- de-para por id do TSE; JAMAIS por CPF
+
+-- fato_indicador_parlamentar (compartilha dim_indicador com o eixo municipal)
+parlamentar_id, periodo VARCHAR, indicador_id, versao_metodologia,
+valor DOUBLE, valor_formatado VARCHAR,
+mediana_grupo DOUBLE, n_grupo INT,            -- régua obrigatória, como no municipal
+data_calculo TIMESTAMP, run_id VARCHAR
+
+-- fato_emenda — A PONTE ENTRE OS DOIS EIXOS
+parlamentar_id, codigo_municipio_ibge VARCHAR(7), ano SMALLINT,
+funcao, valor_indicado, valor_empenhado, valor_pago
+```
+
+**`fato_emenda` é o ativo mais valioso deste marco**, e a razão de ele fazer sentido dentro deste
+projeto e não em outro: emenda tem município de destino, então liga o eixo novo ao produto que já
+existe — *"quem mandou dinheiro para a sua cidade, quanto foi indicado e quanto foi efetivamente
+pago"*. Indicado ≠ empenhado ≠ pago é, por si só, informação que quase ninguém vê.
+
+**Régua de comparação**: o grupo é `mesma casa + mesma UF + mesma legislatura` (análogo às
+"cidades parecidas"), com mediana. Sem grupo definido, não publica — mesma regra do card municipal.
+
+### 7.3 Fontes (todas já catalogadas ou de acesso conhecido)
+
+| Fonte | O que traz | Estado |
+|---|---|---|
+| Câmara — `dadosabertos.camara.leg.br` | proposições, votações nominais, presença, cota parlamentar (CEAP) | catalogada, estável, sem token |
+| Senado — `legis.senado.leg.br` | idem para senadores | catalogada, sem token |
+| Portal da Transparência / SIOP | execução de emendas (indicado → empenhado → pago) | API já catalogada; **exige token CGU** |
+| TSE | candidaturas anteriores, bens declarados, prestação de contas | **espelhar 2026 antes de dezembro** (ARQUITETURA §6) |
+
+### 7.4 O que se publica — e o que não
+
+**Publica-se fato com fonte e data**: presença em votações nominais, proposições apresentadas e
+aprovadas, gasto da cota parlamentar por categoria, emendas indicadas × pagas por município,
+evolução do patrimônio declarado entre eleições.
+
+**Não se publica nota, score, ranking de mérito ou classificação "econômica/social".** A razão não
+é timidez: uma nota é juízo de valor, colide com o princípio inegociável 4, atrai representação
+eleitoral e — o efeito mais caro — faz o leitor desconfiar da metodologia de *todo* o site,
+inclusive dos indicadores municipais que não têm nada a ver com política partidária. Ranking de
+posição segue a regra 6 do PRODUTO §2: sempre com denominador e grupo, nunca "melhor/pior".
+
+### 7.5 Portões de entrada (todos obrigatórios, sem exceção)
+
+1. **M4 lançado e estável** — credibilidade é pré-requisito, não consequência.
+2. **Associação sem fins lucrativos constituída** (§6 item 2) — publicar dado individual de pessoa
+   pública com patrimônio pessoal exposto é risco cível desnecessário.
+3. **RIPD + LIA escritos e revisados por advogado**, antes de uma linha de código de publicação.
+   Dado de político é dado pessoal: a expectativa de privacidade é reduzida, não nula.
+4. **Fora do período eleitoral** — de agosto à diplomação vale o congelamento do SEGURANCA §6.3.
+5. **Anti-CPF ativo no CI** — a proibição de join QSA × TSE (regra 3) vale integralmente aqui, e é
+   exatamente neste marco que ela fica tentadora de burlar.
+
+### 7.6 Esforço e critério de pronto
+
+~20 dp, estimativa grossa: dim + coleta Câmara (3) · Senado (2) · emendas com execução (4) ·
+CEAP (2) · TSE bens e candidaturas (3) · marts e régua (3) · páginas e OG (3).
+
+**Pronto quando**: um parlamentar tem página com no mínimo 5 indicadores, cada um com fonte, data
+de referência e comparação de grupo; `fato_emenda` reconcilia com o Portal da Transparência em 3
+municípios conferidos manualmente; nenhuma nota ou classificação de mérito publicada; RIPD e LIA
+publicados junto com a estreia do marco.
