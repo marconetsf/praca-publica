@@ -103,7 +103,7 @@ INDICADORES: tuple[Indicador, ...] = (
         conta="12 - Educação",
         formula_legivel=(
             "O que a prefeitura pagou em educação no ano, dividido pelos moradores "
-            "da cidade — **não** pelo número de alunos."
+            "da cidade — e não pelo número de alunos."
         ),
         # A ressalva mais importante do MVP: o leitor lê "educação por morador" e
         # entende "investimento por aluno", que é outra conta. Enquanto o Censo
