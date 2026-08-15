@@ -16,6 +16,7 @@ O que **não** está aqui de propósito: nada decide se a métrica é relevante.
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 # marcador para "vale para os 5.570" — distingue de uma lista que por acaso
 # contém todos, e evita carregar 5.570 códigos em memória por indicador
@@ -28,6 +29,70 @@ PERIODICIDADES = ("mensal", "bimestral", "quadrimestral", "anual", "bienal")
 # já mostra ano de referência e data de coleta lado a lado. O aviso extra só
 # aparece quando a defasagem foge do esperado.
 DEFASAGEM_NOTAVEL_MESES = 18
+
+
+class Natureza(Enum):
+    """Como o número veio ao mundo. São coisas epistemicamente diferentes,
+    e apresentá-las igual é o engano mais silencioso deste gênero de site."""
+
+    MEDIDO = "medido"  # contagem real: óbitos registrados, matrículas
+    DECLARADO = "declarado"  # quem informa é o interessado: despesa no SICONFI
+    ESTIMADO = "estimado"  # projeção: população entre censos
+    RATEADO = "rateado"  # valor maior dividido: PIB municipal, DEC por conjunto
+
+
+class Esfera(Enum):
+    """Quem responde por este número.
+
+    O eixo da justiça: prefeito não manda em escola estadual nem em hospital
+    federal. Cobrar do município o que é de outro ente é o erro mais comum em
+    painel municipal — e o mais injusto, porque o leitor não tem como saber.
+    """
+
+    MUNICIPAL = "municipal"
+    ESTADUAL = "estadual"
+    FEDERAL = "federal"
+    COMPARTILHADA = "compartilhada"
+
+
+@dataclass(frozen=True)
+class Procedencia:
+    """De onde o número vem e de quem é a responsabilidade pelo que ele mostra."""
+
+    natureza: Natureza
+    esfera_responsavel: Esfera
+
+    def explicar_natureza(self) -> str | None:
+        """Ressalva de natureza; `None` quando o dado é medição direta."""
+        if self.natureza is Natureza.MEDIDO:
+            return None
+        return {
+            Natureza.DECLARADO: (
+                "Este número é informado pela própria prefeitura ao órgão federal, "
+                "que publica sem auditar."
+            ),
+            Natureza.ESTIMADO: (
+                "Este número usa uma estimativa, não uma contagem: entre um censo e "
+                "outro, a população é projetada."
+            ),
+            Natureza.RATEADO: (
+                "Este número vem de um valor maior repartido entre municípios — o seu "
+                "município não foi medido separadamente."
+            ),
+        }[self.natureza]
+
+    def aviso_de_atribuicao(self) -> str | None:
+        """Avisa quando o responsável não é a prefeitura."""
+        if self.esfera_responsavel is Esfera.MUNICIPAL:
+            return None
+        return {
+            Esfera.ESTADUAL: ("A responsabilidade por este serviço é estadual, não da prefeitura."),
+            Esfera.FEDERAL: ("A responsabilidade por este serviço é federal, não da prefeitura."),
+            Esfera.COMPARTILHADA: (
+                "Este serviço é responsabilidade compartilhada entre prefeitura, estado "
+                "e União — o número não mede só a atuação municipal."
+            ),
+        }[self.esfera_responsavel]
 
 
 @dataclass(frozen=True)
@@ -75,6 +140,13 @@ class Confiabilidade:
     campo_ignorado: str | None = None
     # ano → o que mudou. A série não atravessa a quebra.
     quebras: dict[int, str] = field(default_factory=dict)
+    # O passado muda: SIM e SINASC são revistos, população é reestimada. O valor
+    # de 2020 hoje pode diferir do que era em 2021 — e isso aciona a regra de
+    # errata pública, não uma atualização silenciosa.
+    revisavel: bool = False
+    # Taxa cujo numerador e denominador precisam ser do mesmo ano. Óbitos de 2024
+    # com nascidos vivos de 2017 é erro que nenhum teste de valor detecta.
+    exige_mesmo_ano: bool = False
 
     def avaliar(self, denominador: int | None) -> tuple[bool, str | None]:
         """Suprimir este valor? Devolve (suprimir, motivo)."""
@@ -101,6 +173,14 @@ class Confiabilidade:
         """Campo com 'ignorado' alto engana se o percentual não vier junto."""
         return self.campo_ignorado is not None
 
+    def avisa_revisao(self) -> bool:
+        return self.revisavel
+
+    def anos_compativeis(self, ano_numerador: int, ano_denominador: int) -> bool:
+        if not self.exige_mesmo_ano:
+            return True
+        return ano_numerador == ano_denominador
+
 
 @dataclass(frozen=True)
 class Contrato:
@@ -108,10 +188,24 @@ class Contrato:
 
     cobertura: Cobertura
     confiabilidade: Confiabilidade
+    procedencia: Procedencia | None = None
 
     def avisos_para_o_leitor(self) -> list[str]:
-        """As ressalvas que a página precisa exibir — em português, não em código."""
+        """As ressalvas que a página precisa exibir — em português, não em código.
+
+        A ordem importa: quem responde pelo número vem antes de como ele foi
+        feito, e ambos vêm antes das ressalvas estatísticas. O leitor abandona
+        no terceiro aviso; os dois primeiros precisam ser os que mudam a leitura.
+        """
         avisos = []
+
+        if self.procedencia:
+            atribuicao = self.procedencia.aviso_de_atribuicao()
+            if atribuicao:
+                avisos.append(atribuicao)
+            natureza = self.procedencia.explicar_natureza()
+            if natureza:
+                avisos.append(natureza)
 
         if self.cobertura.defasagem_meses >= DEFASAGEM_NOTAVEL_MESES:
             avisos.append(self.cobertura.explicar_defasagem())
@@ -139,6 +233,12 @@ class Contrato:
             avisos.append(
                 f"Parte dos registros vem sem a informação de "
                 f"{self.confiabilidade.campo_ignorado}; o percentual aparece ao lado."
+            )
+
+        if self.confiabilidade.avisa_revisao():
+            avisos.append(
+                "O órgão revisa este dado depois de publicado, então o número de anos "
+                "anteriores pode mudar; quando isso acontece, registramos a correção."
             )
 
         for ano, motivo in sorted(self.confiabilidade.quebras.items()):

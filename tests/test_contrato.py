@@ -159,6 +159,82 @@ def test_campo_ignorado_precisa_ser_publicado_junto():
     assert not _confianca().exige_publicar_ignorado()
 
 
+# ---------------------------------------------------------------- esfera responsável
+
+
+def test_esfera_responsavel_e_declarada():
+    """O prefeito não manda em escola estadual nem em hospital federal."""
+    assert contrato.Natureza.DECLARADO in contrato.Natureza
+    proc = contrato.Procedencia(
+        natureza=contrato.Natureza.DECLARADO, esfera_responsavel=contrato.Esfera.MUNICIPAL
+    )
+    assert proc.esfera_responsavel is contrato.Esfera.MUNICIPAL
+
+
+def test_esfera_nao_municipal_gera_aviso_de_atribuicao():
+    """Erro mais comum em painel municipal: cobrar do prefeito o que não é dele."""
+    proc = contrato.Procedencia(
+        natureza=contrato.Natureza.MEDIDO, esfera_responsavel=contrato.Esfera.ESTADUAL
+    )
+    aviso = proc.aviso_de_atribuicao()
+    assert aviso and "estadual" in aviso.lower()
+
+
+def test_esfera_municipal_nao_precisa_de_aviso():
+    proc = contrato.Procedencia(
+        natureza=contrato.Natureza.MEDIDO, esfera_responsavel=contrato.Esfera.MUNICIPAL
+    )
+    assert proc.aviso_de_atribuicao() is None
+
+
+# ---------------------------------------------------------------- natureza do dado
+
+
+@pytest.mark.parametrize(
+    ("natureza", "trecho"),
+    [
+        (contrato.Natureza.DECLARADO, "informado pela própria"),
+        (contrato.Natureza.ESTIMADO, "estimativa"),
+        (contrato.Natureza.RATEADO, "não foi medido"),
+    ],
+)
+def test_natureza_nao_medida_se_explica(natureza, trecho):
+    """Rateio apresentado como medição é o engano mais silencioso do gênero."""
+    proc = contrato.Procedencia(natureza=natureza, esfera_responsavel=contrato.Esfera.MUNICIPAL)
+    assert trecho in proc.explicar_natureza().lower()
+
+
+def test_dado_medido_nao_precisa_de_ressalva_de_natureza():
+    proc = contrato.Procedencia(
+        natureza=contrato.Natureza.MEDIDO, esfera_responsavel=contrato.Esfera.MUNICIPAL
+    )
+    assert proc.explicar_natureza() is None
+
+
+# ---------------------------------------------------------------- revisão e sincronia
+
+
+def test_dado_revisavel_avisa_que_o_passado_muda():
+    """SIM e SINASC são revistos: o valor de 2020 hoje difere do de 2021."""
+    conf = _confianca(revisavel=True)
+    assert conf.avisa_revisao()
+
+
+def test_dado_definitivo_nao_avisa():
+    assert not _confianca().avisa_revisao()
+
+
+def test_taxa_exige_numerador_e_denominador_do_mesmo_ano():
+    """Óbitos de 2024 com nascidos vivos de 2017 é erro que nenhum teste pega."""
+    conf = _confianca(exige_mesmo_ano=True)
+    assert not conf.anos_compativeis(2024, 2017)
+    assert conf.anos_compativeis(2024, 2024)
+
+
+def test_sem_exigencia_de_sincronia_qualquer_par_passa():
+    assert _confianca().anos_compativeis(2024, 2017)
+
+
 # ---------------------------------------------------------------- o contrato inteiro
 
 

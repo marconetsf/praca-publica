@@ -22,7 +22,14 @@ import argparse
 from dataclasses import dataclass
 
 from pipelines.common import parquet, storage
-from pipelines.marts.contrato import Cobertura, Confiabilidade, Contrato
+from pipelines.marts.contrato import (
+    Cobertura,
+    Confiabilidade,
+    Contrato,
+    Esfera,
+    Natureza,
+    Procedencia,
+)
 
 # abaixo disso a mediana do grupo é instável demais para virar referência pública
 MINIMO_GRUPO = 5
@@ -39,6 +46,14 @@ CONTRATO_DCA = Contrato(
         # o Tesouro publica sem auditar e ~25% das declarações têm inconsistência;
         # o gate de sanidade barra o impossível, o resto vira ressalva no card
         campo_ignorado=None,
+        # o município pode retificar a DCA depois de enviada
+        revisavel=True,
+    ),
+    procedencia=Procedencia(
+        # quem informa é a própria prefeitura, que é parte interessada
+        natureza=Natureza.DECLARADO,
+        # orçamento municipal é responsabilidade da prefeitura, sem ambiguidade
+        esfera_responsavel=Esfera.MUNICIPAL,
     ),
 )
 
