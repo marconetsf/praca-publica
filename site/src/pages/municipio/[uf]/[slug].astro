@@ -21,9 +21,10 @@ import {
   lerMunicipio,
   catalogoIndicadores,
   formatarNumero,
-  formatarReais,
+  formatarValor,
   classificarComparacao,
   FRASE_RESUMO,
+  GRUPOS_DE_INDICADOR,
   nomeUf,
   motivoSemDado,
 } from "../../../dados.js";
@@ -63,8 +64,9 @@ const semComparacao = m.indicadores.filter((i) => !i.comparacao);
 const resumo = comComparacao.slice(0, 2).map((i) => {
   const classe = classificarComparacao(i.valor, i.comparacao);
   return (
-    `${i.nome}: ${formatarReais(i.valor)} em ${i.ano_referencia} — ` +
-    `${FRASE_RESUMO[classe]} (mediana ${formatarReais(i.comparacao.mediana_parecidos)}).`
+    `${i.nome}: ${formatarValor(i.valor, i.unidade)} em ${i.ano_referencia} — ` +
+    `${FRASE_RESUMO[classe]} ` +
+    `(mediana ${formatarValor(i.comparacao.mediana_parecidos, i.unidade)}).`
   );
 });
 
@@ -75,15 +77,26 @@ const resumo = comComparacao.slice(0, 2).map((i) => {
 const preenchidos = semComparacao.slice(0, Math.max(0, 2 - resumo.length));
 for (const i of preenchidos) {
   resumo.push(
-    `${i.nome}: ${formatarReais(i.valor)} em ${i.ano_referencia} — ainda sem comparação, ` +
-      "porque o grupo de cidades parecidas tem menos de 5 com este dado publicado."
+    `${i.nome}: ${formatarValor(i.valor, i.unidade)} em ${i.ano_referencia} — ` +
+      "ainda sem comparação, porque o grupo de cidades parecidas tem menos de 5 " +
+      "com este dado publicado."
   );
 }
 
-for (const bloco of faltantes) {
+// A lacuna entra no resumo — transparência ativa (PRODUTO §2 regra 1) — mas em
+// UMA linha. Com 15 indicadores, listar cada falta empurraria os números para
+// fora do print de WhatsApp, que é onde o resumo é lido.
+if (faltantes.length === 1) {
+  const { definicao } = faltantes[0];
   resumo.push(
-    `Sem dado de "${bloco.definicao.nome}" em ${m.ano_referencia}: ou a prefeitura ` +
-      "não declarou ao Tesouro Nacional, ou o valor declarado era impossível."
+    `Sem dado de "${definicao.nome}" em ${m.ano_referencia}. ` +
+      (definicao.ausenciaSignifica ?? "")
+  );
+} else if (faltantes.length > 1) {
+  resumo.push(
+    `${faltantes.length} dos ${blocos.length} números não saíram para ${m.nome} em ` +
+      `${m.ano_referencia}: ${faltantes.map((b) => b.definicao.nome).join(", ")}. ` +
+      "Cada card abaixo explica o motivo da falta."
   );
 }
 
@@ -109,31 +122,51 @@ const apoio =
     <Lista variante="resumo" itens={resumo} />
   </section>
 
-  <section aria-labelledby="dinheiro">
-    <Titulo nivel={2} id="dinheiro" ancora>Dinheiro da prefeitura</Titulo>
-    {
-      blocos.map(({ definicao, indicador }) =>
-        indicador ? (
-          <CardIndicador indicador={indicador} nomeMunicipio={m.nome} />
-        ) : (
-          <SemDado titulo={definicao.nome} fonte={`${definicao.orgao} (${definicao.fonte})`}>
-            <p>{motivoSemDado(m.nome, m.ano_referencia, definicao.orgao)}</p>
-            <p class="explica">{definicao.descricao}</p>
-          </SemDado>
-        )
-      )
-    }
-    {
-      /* Só aparece quando falta algo: um convite a contestar num município com
-         a página completa seria ruído, e o leitor aprende a ignorar o aviso. */
-      faltantes.length > 0 && (
-        <p class="contestar">
-          Acha que {m.nome} enviou este dado?{" "}
-          <a href="/feedback">Veja como conferir na fonte</a>.
-        </p>
-      )
-    }
-  </section>
+  {
+    /* Um bloco por grupo declarado no mart. 15 cards numa lista só não contam
+       história nenhuma; separados em "de onde vem", "para onde vai" e "por
+       área", a página responde as perguntas na ordem em que elas aparecem. */
+    GRUPOS_DE_INDICADOR.map((grupo) => {
+      const doGrupo = blocos.filter(({ definicao }) => definicao.grupo === grupo.id);
+      if (doGrupo.length === 0) return null;
+      return (
+        <section aria-labelledby={grupo.id}>
+          <Titulo nivel={2} id={grupo.id} ancora>
+            {grupo.titulo}
+          </Titulo>
+          <p class="apoio-secao">{grupo.apoio}</p>
+          {doGrupo.map(({ definicao, indicador }) =>
+            indicador ? (
+              <CardIndicador indicador={indicador} nomeMunicipio={m.nome} />
+            ) : (
+              <SemDado titulo={definicao.nome} fonte={`${definicao.orgao} (${definicao.fonte})`}>
+                <p>
+                  {motivoSemDado(
+                    m.nome,
+                    m.ano_referencia,
+                    definicao.orgao,
+                    definicao.ausenciaSignifica
+                  )}
+                </p>
+                <p class="explica">{definicao.descricao}</p>
+              </SemDado>
+            )
+          )}
+        </section>
+      );
+    })
+  }
+
+  {
+    /* Só aparece quando falta algo: um convite a contestar num município com
+       a página completa seria ruído, e o leitor aprende a ignorar o aviso. */
+    faltantes.length > 0 && (
+      <p class="contestar">
+        Acha que {m.nome} enviou este dado?{" "}
+        <a href="/feedback">Veja como conferir na fonte</a>.
+      </p>
+    )
+  }
 
   <p class="identificacao numero">
     Código IBGE {m.codigo_ibge} · dados de {m.ano_referencia} ·
@@ -152,6 +185,11 @@ const apoio =
     margin-bottom: var(--esp-6);
   }
   .explica {
+    color: var(--cor-neutra);
+    font-size: var(--texto-menor);
+  }
+  .apoio-secao {
+    margin-top: calc(-1 * var(--esp-2));
     color: var(--cor-neutra);
     font-size: var(--texto-menor);
   }

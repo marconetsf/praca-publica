@@ -70,12 +70,42 @@ export function catalogoIndicadores() {
         unidade: indicador.unidade,
         fonte: indicador.fonte,
         orgao: indicador.procedencia?.orgao ?? null,
+        // o que a falta deste número quer dizer, e onde ele entra na página:
+        // as duas decisões vêm do mart, para o site não ter uma segunda versão
+        ausenciaSignifica: indicador.ausencia_significa ?? null,
+        grupo: indicador.grupo ?? "area",
+        ordem: indicador.ordem ?? 0,
       });
     }
   }
-  _catalogo = [...mapa.values()].sort((a, b) => a.id.localeCompare(b.id));
+  // ordem do mart, não alfabética: quem sabe o que o leitor vê primeiro é quem
+  // conhece os números
+  _catalogo = [...mapa.values()].sort((a, b) => a.ordem - b.ordem);
   return _catalogo;
 }
+
+/**
+ * Os blocos da página do município, na ordem em que ela os mostra. O texto de
+ * apoio existe porque "entrada" e "saída" não significam nada sozinhos para
+ * quem chegou pelo WhatsApp.
+ */
+export const GRUPOS_DE_INDICADOR = [
+  {
+    id: "entrada",
+    titulo: "De onde vem o dinheiro",
+    apoio: "Tudo que entrou no caixa da prefeitura no ano, e de onde veio.",
+  },
+  {
+    id: "saida",
+    titulo: "Para onde o dinheiro vai",
+    apoio: "Como o gasto se divide entre pagar gente e construir coisa.",
+  },
+  {
+    id: "area",
+    titulo: "Quanto foi para cada área",
+    apoio: "O que a prefeitura pagou em cada área, por morador.",
+  },
+];
 
 /** R$ 1.030 — arredondado na leitura; o valor exato fica no JSON e no CSV. */
 export function formatarReais(valor) {
@@ -118,8 +148,33 @@ export function descreverUnidade(unidade, ano) {
   const MAPA = {
     "R$/morador/ano": ano ? `por morador, em ${ano}` : "por morador, no ano",
     "R$/morador": "por morador",
+    "% da receita": ano ? `de tudo que entrou em ${ano}` : "de tudo que entrou",
+    "% da despesa": ano ? `de tudo que foi pago em ${ano}` : "de tudo que foi pago",
   };
   return MAPA[unidade] ?? unidade;
+}
+
+/**
+ * "12,7%" — sempre com uma casa decimal.
+ *
+ * Arredondar para inteiro fazia 12,7% do município e 13,0% da mediana virarem
+ * "13%" e "13%": o card dizia que os dois números eram iguais quando não são,
+ * e a barra ao lado mostrava a diferença. Uma casa resolve sem poluir.
+ */
+export function formatarPorcentagem(valor) {
+  return `${new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(valor)}%`;
+}
+
+/**
+ * O número como ele deve ser lido, decidido pela unidade que o indicador
+ * declara. Existe para que nenhum componente precise saber que "% da despesa"
+ * não leva "R$" na frente — a formatação segue o dado, e não o contrário.
+ */
+export function formatarValor(valor, unidade) {
+  return unidade?.startsWith("%") ? formatarPorcentagem(valor) : formatarReais(valor);
 }
 
 /**
@@ -230,11 +285,16 @@ export function nomeUf(uf) {
  * recusa promovê-los). Como o serving não distingue as duas, o texto diz as
  * duas: melhor uma explicação honestamente ampla do que uma precisa e falsa.
  */
-export function motivoSemDado(nomeMunicipio, ano, orgao = "Tesouro Nacional") {
-  return (
-    `${nomeMunicipio} não tem este número publicado para ${ano}. ` +
+export function motivoSemDado(nomeMunicipio, ano, orgao = "Tesouro Nacional", significa = null) {
+  // Quando o indicador declara o que a própria falta quer dizer, é esse texto
+  // que vale: em saneamento, "não gastou" costuma ser "quem faz é o estado", e
+  // o texto genérico acusaria de omissão metade dos municípios do Norte.
+  const causa =
+    significa ??
     `Ou a prefeitura não declarou o dado ao ${orgao}, ou o valor declarado era ` +
-    "impossível — como uma arrecadação negativa — e nós não publicamos. " +
+      "impossível — como uma arrecadação negativa — e nós não publicamos.";
+  return (
+    `${nomeMunicipio} não tem este número publicado para ${ano}. ${causa} ` +
     "Falta de dado nunca vira zero aqui, e esta cidade não entra na conta das parecidas."
   );
 }

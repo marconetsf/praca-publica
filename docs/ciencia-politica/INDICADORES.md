@@ -1,9 +1,14 @@
 # Quais indicadores publicar — e por quê
 
-> Levantamento de 15/08/2026, feito para responder a uma lacuna real: os três indicadores do
-> MVP são todos de **composição de gasto**, e composição de gasto não tem direção. O leitor
-> pergunta "minha cidade está melhorando?" e a página responde "gastou R$ 1.030 por morador",
-> que não é resposta.
+> Levantamento de 15/08/2026, feito para responder a uma lacuna real: os indicadores do MVP são
+> todos de **composição de gasto**, e composição de gasto não tem direção. O leitor pergunta
+> "minha cidade está melhorando?" e a página responde "gastou R$ 1.030 por morador", que não é
+> resposta.
+>
+> **Atualização de 16/08/2026**: o orçamento passou de 3 para 15 indicadores. Isso melhora o
+> retrato (agora a página diz de onde vem o dinheiro, para onde vai e quanto foi para cada
+> área) e dá base à medida de transparência, mas **não resolve a lacuna deste documento** —
+> 15 números sem direção continuam sem responder à pergunta. A fila abaixo é o que resolve.
 >
 > Este documento não é um mecanismo — é o critério de admissão e a fila. A relevância é a
 > única das três exigências do projeto (relevante, verdadeiro, simples) que não dá para

@@ -64,6 +64,10 @@ def _montar(linhas, indicadores: dict, ano: int, coletado_em: str) -> dict:
     if municipio["sem_nenhum_dado"]:
         return municipio
 
+    # a ordem é a do mart (`dim_indicador.ordem`), não a alfabética do SQL: sem
+    # isto o "Em resumo" da página abria com administração e agricultura, que são
+    # os primeiros do alfabeto e os últimos que o leitor quer ver primeiro
+    linhas = sorted(linhas, key=lambda linha: indicadores[linha["indicador_id"]]["ordem"])
     for linha in linhas:
         meta = indicadores[linha["indicador_id"]]
         comparacao = None
@@ -83,6 +87,9 @@ def _montar(linhas, indicadores: dict, ano: int, coletado_em: str) -> dict:
                 "valor": linha["valor"],
                 "unidade": meta["unidade"],
                 "direcao_melhor": meta["direcao_melhor"],
+                "ausencia_significa": meta["ausencia_significa"],
+                "grupo": meta["grupo"],
+                "ordem": meta["ordem"],
                 "fonte": meta["fonte"],
                 "ano_referencia": ano,
                 "coletado_em": coletado_em,
@@ -143,6 +150,12 @@ def gerar(
         "formula_sql",
         "formula_legivel",
         "ressalvas",
+        # o que a falta deste indicador quer dizer — "não declarou" e "não é ela
+        # quem faz" são coisas diferentes, e o card de ausência precisa saber qual
+        "ausencia_significa",
+        # em que bloco da página o card entra, e em que ordem dentro dele
+        "grupo",
+        "ordem",
     )
     indicadores = {
         linha[0]: dict(zip(campos_indicador, linha, strict=True))

@@ -26,7 +26,7 @@
 import ComoFoiCalculado from "./ComoFoiCalculado.astro";
 import SemDado from "./SemDado.astro";
 import {
-  formatarReais,
+  formatarValor,
   formatarData,
   descreverUnidade,
   classificarComparacao,
@@ -50,9 +50,11 @@ const larguraMediana = c ? Math.max(3, (c.mediana_parecidos / maximo) * 100) : 0
 // A frase da comparação é montada aqui, inteira, e não costurada no template:
 // interpolação em JSX insere espaço antes da pontuação ("R$ 1.575 , e Boa
 // Vista...") e um erro desses aparece no print do WhatsApp, não no teste.
+const mostrar = (valor) => formatarValor(valor, indicador.unidade);
+
 const detalhe = c
   ? `Cidades parecidas: ${grupo}. O típico delas — a mediana — é ` +
-    formatarReais(c.mediana_parecidos) +
+    mostrar(c.mediana_parecidos) +
     (c.posicao && c.n_parecidos
       ? `, e ${nomeMunicipio} tem o ${c.posicao}º maior valor entre as ${c.n_parecidos}.`
       : ".")
@@ -62,7 +64,7 @@ const detalhe = c
 <article class="card">
   <Tag class="nome">{indicador.nome}</Tag>
 
-  <p class="valor numero">{formatarReais(indicador.valor)}</p>
+  <p class="valor numero">{mostrar(indicador.valor)}</p>
   <p class="unidade">{descreverUnidade(indicador.unidade, indicador.ano_referencia)}</p>
 
   {
@@ -78,14 +80,14 @@ const detalhe = c
         <div class="regua" aria-hidden="true">
           <div class="linha">
             <span class="rot">{nomeMunicipio}</span>
-            <span class="val numero">{formatarReais(indicador.valor)}</span>
+            <span class="val numero">{mostrar(indicador.valor)}</span>
           </div>
           <div class="trilho">
             <span class="barra" style={`width:${larguraValor}%`} />
           </div>
           <div class="linha">
             <span class="rot">cidades parecidas</span>
-            <span class="val numero">{formatarReais(c.mediana_parecidos)}</span>
+            <span class="val numero">{mostrar(c.mediana_parecidos)}</span>
           </div>
           <div class="trilho">
             <span class="barra barra--mediana" style={`width:${larguraMediana}%`} />

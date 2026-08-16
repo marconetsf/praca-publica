@@ -79,13 +79,19 @@ nesta ordem:
    errata. **O canal de envio não existe** — o projeto ainda não tem domínio nem e-mail — e a
    página diz isso em vez de prometer atendimento. Quando houver endereço, trocar a constante em
    `site/src/contato.js`: o link aparece sozinho e o teste inverte o que cobra.
-3. **Publicar a fração de transparência** por município, com o enquadramento acordado:
+3. **Publicar a fração de transparência** por município — agora sobre 15 itens declaráveis, e
+   não 3, o que tira a medida do quase binário. Com o enquadramento acordado:
    **diagnóstico, não punição** — é benéfico para o município ter o resultado do exame. Peso
    multiplicado pela população: déficit em cidade grande pesa mais porque atinge mais gente.
    O desenho está em [TRANSPARENCIA.md](ciencia-politica/TRANSPARENCIA.md).
 
 ### 4. Indicadores que mostram evolução
-O MVP só tem indicadores de composição de gasto, que não têm direção — não respondem "minha
+Em 16/08/2026 o site passou de 3 para **15 indicadores** do orçamento (todos da DCA, 6.254
+linhas no fato) — o suficiente para a página contar de onde vem o dinheiro, para onde ele vai e
+quanto foi para cada área. Dois deles são proporção, não "por morador": o mart aprendeu a
+dividir uma conta por outra, e não só pela população.
+
+Continua faltando o essencial: **nenhum deles tem direção pactuada** — não respondem "minha
 cidade está melhorando?". O critério de escolha está em [INDICADORES.md](ciencia-politica/INDICADORES.md) e o
 andamento em **[CHECKLIST-INDICADORES.md](ciencia-politica/CHECKLIST-INDICADORES.md)**, que também lista os
 bloqueios (SINASC nacional só até 2017; IDEB sem série; `.dbc` sem conversor).
