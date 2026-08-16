@@ -23,6 +23,10 @@
                                      no site, o que está guardado e o que está bloqueado. Gerada por
                                      `pipelines/marts/fontes.py` — a situação é DERIVADA dos fatos
                                      (indicador publicado, manifesto, watcher), nunca declarada à mão
+/feedback                            Como conferir um número na fonte, por que uma ausência
+                                     aparece e o que fazemos quando erramos. O canal de envio
+                                     mora em `site/src/contato.js` e hoje é `null` — a página
+                                     diz isso de frente em vez de prometer atendimento
 /dados                               Bulk download (parquet/CSV), licenças, changelog
 /erratas                             Correções públicas, com RSS
 /sobre                               Quem faz, financiamento, política editorial
@@ -118,6 +122,7 @@ JSON-LD: `City` (com código IBGE em `identifier`), `BreadcrumbList`, `Dataset` 
 - **`/metodologia/{indicador}`**: o que mede (linguagem simples), fórmula exata, fonte, defasagem, **limitações conhecidas** (lacuna SICONFI ~25%, subnotificação SIM/SINASC), faixas do semáforo e direção assumida.
 - **`/fontes`**: a contrapartida de cobrar transparência dos entes. Quatro estados, derivados: **no site**, **guardado** (espelhado, ainda sem virar indicador), **ainda não fomos buscar** e **fora do alcance** (com o motivo por extenso). Duas regras editoriais fortes: a página **nunca acusa o órgão** — falha da nossa sonda vira "pode ser bloqueio ao nosso acesso", e falha isolada é distinguida de queda persistente pelo número de checagens seguidas; e **nenhum rastro técnico** (exceção de Python, host, porta) chega ao leitor.
 - **`/dados`**: parquet + CSV dos marts, dicionário, manifesto (sha256 por fonte), licenças (CC-BY nossos agregados; ODbL onde herdado), changelog.
+- **`/feedback`**: o leitor confere o número na fonte (o link já está em cada card), entende os três motivos de uma ausência e sabe que erro nosso vira errata datada. **Enquanto `CANAL_DE_CONTATO` for `null`, nenhum e-mail pode aparecer em página nenhuma** (cobrado por `tests/test_pagina_feedback.py`) e a página declara a falta do canal: promessa de atendimento que ninguém presta é pior do que não ter a página — mesma regra do dado ausente.
 - **Política de erro em `/sobre`** + `/erratas` com RSS (ver SEGURANCA.md §5).
 - **Ano eleitoral**: banner permanente "A Praça Pública não apoia candidatos..."; **metodologia congelada de agosto à diplomação**.
 

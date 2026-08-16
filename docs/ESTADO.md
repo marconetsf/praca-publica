@@ -74,8 +74,11 @@ nesta ordem:
    nunca declarada à mão. Regra editorial: a página **não acusa o órgão**; falha da nossa sonda
    vira "pode ser bloqueio ao nosso acesso", e falha isolada é distinguida de queda persistente.
    Fonte nova sem `ficha:` no `fontes.yaml` **quebra o teste** — não some da página em silêncio.
-2. **Menu de feedback** para o leitor contestar uma ausência ("meu município declarou, sim").
-   Sem coleta de dado pessoal além do necessário para responder.
+2. ~~**Menu de feedback**~~ — feito em 16/08/2026, na forma possível hoje: `/feedback` ensina a
+   conferir o número na fonte, explica os três motivos de uma ausência e registra a política de
+   errata. **O canal de envio não existe** — o projeto ainda não tem domínio nem e-mail — e a
+   página diz isso em vez de prometer atendimento. Quando houver endereço, trocar a constante em
+   `site/src/contato.js`: o link aparece sozinho e o teste inverte o que cobra.
 3. **Publicar a fração de transparência** por município, com o enquadramento acordado:
    **diagnóstico, não punição** — é benéfico para o município ter o resultado do exame. Peso
    multiplicado pela população: déficit em cidade grande pesa mais porque atinge mais gente.
@@ -105,6 +108,7 @@ Ver ESCOPO §3.
 |---|---|
 | **Espelho Backblaze B2** com Object Lock | O R2 **não tem versionamento**. Os 2 GB de acervo de resgate têm **uma única cópia**: token vazado ou comando errado apaga sem recuperação. O SNIS provou nesta sessão que a origem some. |
 | **healthchecks.io** (2 checks) | Secrets `HEALTHCHECK_URL` (ingest) e `HEALTHCHECK_WATCHER_URL` (watcher) — os workflows já os consomem condicionalmente. O Telegram cobre job que *falhou*, não job que *nem rodou*. |
+| **Domínio + caixa de e-mail** do projeto | Sem eles não há canal para o leitor contestar um dado (`/feedback` declara a falta) nem o `privacidade@` que SEGURANCA §1 exige antes do lançamento. Definido o endereço, basta trocar `CANAL_DE_CONTATO` em `site/src/contato.js`. |
 
 ## 4. Decisões tomadas (não reabrir sem motivo novo)
 

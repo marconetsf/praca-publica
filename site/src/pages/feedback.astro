@@ -1,0 +1,120 @@
+---
+/**
+ * `/feedback` — como contestar um número ou uma ausência.
+ *
+ * O projeto ainda não tem canal de envio (ver `contato.js`), e a página diz
+ * isso de frente em vez de escrever "avise a gente" sem endereço. Enquanto o
+ * canal não existe, o que ela entrega é o que o leitor pode fazer sozinho hoje:
+ * conferir o número na fonte do órgão, entender por que uma ausência aparece, e
+ * saber o que faremos quando o aviso puder chegar.
+ *
+ * Prometer atendimento que ninguém vai prestar seria pior do que não ter
+ * página — a mesma regra que aplicamos ao dado que falta.
+ */
+import Base from "../layouts/Base.astro";
+import Cabecalho from "../components/Cabecalho.astro";
+import Titulo from "../components/Titulo.astro";
+import Nota from "../components/Nota.astro";
+import { CANAL_DE_CONTATO } from "../contato.js";
+---
+
+<Base
+  titulo="Achou um erro? — Praça Pública"
+  descricao="Como conferir um número na fonte, o que fazer quando falta o dado da sua cidade e o que fazemos com um aviso de erro."
+>
+  <Cabecalho
+    titulo="Achou um erro?"
+    apoio="Como conferir, e o que fazemos quando erramos"
+    migalha={[{ texto: "Início", href: "/" }, { texto: "Achou um erro?" }]}
+  />
+
+  <p class="chamada">
+    Todo número deste site vem de um órgão público e pode ser conferido na fonte.
+    Se algo aqui está errado, o erro é nosso e queremos saber.
+  </p>
+
+  <Titulo nivel={2} id="conferir" ancora>Confira você mesmo, em dois cliques</Titulo>
+  <p>
+    Em cada número da página da sua cidade existe o link
+    <strong>"Como este número foi calculado?"</strong>. Ele mostra a conta em português
+    e leva ao dado bruto no site do órgão, já filtrado para o seu município.
+  </p>
+  <p>
+    O que você vê lá é o que usamos. Não guardamos uma versão nossa do número: se a
+    conta não bater, o erro está no nosso lado e vale o aviso.
+  </p>
+
+  <Titulo nivel={2} id="ausencia" ancora>Falta o dado da sua cidade?</Titulo>
+  <p>
+    Quando um dado falta, a página mostra a falta no lugar do número. Ela nunca vira
+    zero. São três motivos possíveis, e eles são bem diferentes entre si:
+  </p>
+  <ol>
+    <li>
+      <strong>A prefeitura não enviou.</strong> O dado nasce de uma declaração que a
+      própria cidade faz ao governo federal. Cerca de um quarto delas atrasa ou falha.
+    </li>
+    <li>
+      <strong>O valor enviado era impossível.</strong> Em 2024, 31 cidades declararam
+      arrecadação negativa. Nesses casos não publicamos: um número errado engana mais
+      do que a falta dele.
+    </li>
+    <li>
+      <strong>Nós é que ainda não fomos buscar.</strong> Isso não é falha do órgão, e
+      a página <a href="/fontes">de onde vêm os dados</a> mostra fonte por fonte o que
+      já pegamos e o que ainda não.
+    </li>
+  </ol>
+  <p>
+    Se a prefeitura enviou depois, o dado entra na próxima atualização. Nós voltamos a
+    perguntar ao órgão a cada 30 dias.
+  </p>
+
+  <Titulo nivel={2} id="errata" ancora>O que fazemos quando erramos</Titulo>
+  <p>
+    Conferimos na fonte. Se o erro for nosso, corrigimos e publicamos a correção com a
+    data, o valor antigo e o valor novo.
+  </p>
+  <p>
+    Nunca corrigimos escondido. Um número que já circulou no WhatsApp não volta atrás,
+    e a única resposta honesta é deixar o registro do erro no ar.
+  </p>
+
+  {
+    CANAL_DE_CONTATO ? (
+      <Nota tipo="info" titulo="Como avisar">
+        <p>
+          Escreva para <a href={`mailto:${CANAL_DE_CONTATO}`}>{CANAL_DE_CONTATO}</a>. Ajuda
+          muito se você mandar o link da página, o nome do número e o que viu na fonte.
+        </p>
+      </Nota>
+    ) : (
+      <Nota tipo="atencao" titulo="Ainda não temos canal para receber o seu aviso">
+        <p>
+          Este site é um projeto em construção e ainda não tem endereço próprio nem
+          caixa de e-mail. Seria fácil escrever "avise a gente" aqui, mas ninguém iria
+          ler — e promessa que não se cumpre é o oposto do que a Praça Pública quer ser.
+        </p>
+        <p>
+          Enquanto isso: guarde o link da página e a data. O dado bruto continua no site
+          do órgão, e o link para ele está em cada número. Quando o canal existir, ele
+          aparece aqui.
+        </p>
+      </Nota>
+    )
+  }
+</Base>
+
+<style>
+  .chamada {
+    font-size: var(--texto-medio);
+    margin-bottom: var(--esp-5);
+  }
+  ol {
+    margin: 0 0 var(--esp-4);
+    padding-left: var(--esp-5);
+  }
+  li {
+    margin-bottom: var(--esp-3);
+  }
+</style>
