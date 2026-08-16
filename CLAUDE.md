@@ -34,6 +34,7 @@ pode reabrir. Documento novo entra na pasta do braço, não na raiz.
 | Arquivo | O que contém |
 |---|---|
 | [ARQUITETURA.md](docs/arquitetura/ARQUITETURA.md) | Storage, R2/Actions/VPS, topologia de buckets, serving, schema dos marts, custos, backup |
+| [INTEGRAR-FONTE.md](docs/arquitetura/INTEGRAR-FONTE.md) | **Como entra base nova**: os 5 modos de guarda, as 3 perguntas que decidem, os portões e o que se recusa |
 | `pipelines/marts/contrato.py` | **Contrato de indicador**: cobertura, universo, confiabilidade, esfera, natureza do dado |
 
 ### Infra — onde roda e como não vaza · agente `infra`
@@ -76,6 +77,7 @@ ruff check .; ruff format .
 python -m pipelines.siconfi.ingest_entes            # dimensão de entes (5.598)
 python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 python -m pipelines.marts.fontes                    # ficha pública das fontes (/fontes)
+python -m pipelines.reconhecer --url <url> --risco alto   # mede fonte nova antes de baixar
 ```
 
 - **TDD é obrigatório em todo desenvolvimento**: escrever o teste antes (vermelho), implementar
@@ -110,6 +112,11 @@ python -m pipelines.marts.fontes                    # ficha pública das fontes 
   e a `pagina_oficial` verificada. É o que o cidadão lê em `/fontes`. A **situação** da fonte
   não se declara: `pipelines/marts/fontes.py` a deriva dos fatos. Fonte sem ficha quebra
   `tests/test_fontes_publicas.py`, que existe para nenhuma sumir da página em silêncio.
+- **E `guarda:`** — o que se guarda dessa fonte e por quê. Base nova segue o procedimento de
+  **[docs/arquitetura/INTEGRAR-FONTE.md](docs/arquitetura/INTEGRAR-FONTE.md)** (skill
+  `integrar-fonte`): reconhecer com `python -m pipelines.reconhecer` **antes** de baixar
+  qualquer coisa, e colar o bloco que ele gera. Computar não exige cópia; publicar exige.
+  `recorte.pactuado_em: null` faz o espelhador recusar a fonte — nem `--todas` passa.
 - Falhas de pipeline avisam o canal de operações: envolver o `main()` em
   `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
 - Repo: `marconetsf/praca-publica` (público). **Main protegida: PR obrigatório** (0 aprovações,

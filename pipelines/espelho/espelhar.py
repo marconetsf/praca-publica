@@ -27,7 +27,7 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
-from pipelines.common import alertas, manifest, storage, tls
+from pipelines.common import alertas, guarda, manifest, storage, tls
 from pipelines.common.config import fonte as carregar_fonte
 from pipelines.common.config import fontes as carregar_fontes
 from pipelines.common.http import UA
@@ -167,10 +167,19 @@ def espelhar(
 
 
 def alvos_do_catalogo(fontes: dict) -> list[tuple[str, str]]:
-    """Pares (fonte, url) declarados em `espelho:` no fontes.yaml."""
+    """Pares (fonte, url) que o catálogo autoriza espelhar.
+
+    Filtra pela declaração de `guarda:`: fonte cujo modo não guarda cópia, ou
+    cujo recorte ainda não tem indicador pactuado, **não entra** — nem com
+    `--todas`. Sem esse portão, a decisão escrita no YAML seria só exortação, e
+    bastaria uma execução distraída para copiar o acervo que foi recusado com
+    motivo (o SIH de 66 GB, o dump de CNPJ de 30 GB).
+    """
     alvos = []
     for fonte, config in fontes.items():
         if not isinstance(config, dict):
+            continue
+        if not guarda.pode_colher(guarda.ler(config)):
             continue
         for url in config.get("espelho") or []:
             alvos.append((fonte, url))

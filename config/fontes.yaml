@@ -6,6 +6,14 @@
 # encheria o canal de alarme falso. `status_ok` declara os status que significam "de pé"
 # (401 de quem exige token é resposta saudável). Fonte sem `sonda:` não é vigiada.
 #
+# `guarda:` é o que se guarda desta fonte, e por quê (pipelines/common/guarda.py). Cinco
+# modos: integral, recorte, colheita (guardam cópia e podem sustentar número publicado),
+# remota e nenhuma (não guardam nada e NÃO publicam). O motivo é obrigatório em tudo que
+# não é integral — recusa sem motivo escrito volta como proposta nova a cada seis meses.
+# `recorte.pactuado_em: null` faz o pipeline se recusar a colher. Não escreva este bloco
+# à mão: `python -m pipelines.reconhecer --url ...` mede e gera. Ver
+# docs/arquitetura/INTEGRAR-FONTE.md.
+#
 # `ficha:` é o que o cidadão lê em /fontes (pipelines/marts/fontes.py). Só o que nenhum
 # fato revela sozinho: nome do órgão, o que ele publica em português, endereço oficial e o
 # motivo de um bloqueio. A situação ("no site", "guardado", "bloqueado") NÃO se declara
@@ -18,6 +26,16 @@ siconfi:
   encoding: utf-8
   sonda:
     url: https://apidatalake.tesouro.gov.br/ords/siconfi/tt/entes?an_exercicio=2024
+  guarda:
+    modo: colheita
+    medido_em: 2026-08-16
+    volume_gb: 0.05
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      API com filtro por ente e exercício: a consulta de um município cabe em
+      poucos KB. Guardamos as respostas de cada execução, com os parâmetros
+      usados, em vez de espelhar um acervo que a fonte serve sob demanda.
   ficha:
     orgao: Tesouro Nacional
     publica: >-
@@ -40,6 +58,20 @@ cnpj_rfb:
     # (8174 → 8177 em 2 s, medido em 2026-07-26). Vigiar só disponibilidade;
     # dump novo é detectado pelo pipeline da Fase 2, não pelo watcher.
     detectar_mudanca: false
+  guarda:
+    modo: recorte
+    medido_em: 2026-07-26
+    volume_gb: 30.0
+    risco_sumico: baixo
+    onde: vps
+    motivo: >-
+      7,6 GB por mês em zip e cerca de 30 GB extraídos: 3x o plano de storage
+      inteiro para um dump que a Receita republica todo mês. O recorte é o que
+      alimenta indicador publicado, e a extração exige disco que o runner não tem.
+    recorte:
+      pactuado_em: null
+      municipios: []
+      periodo: []
   ficha:
     orgao: Receita Federal
     publica: O cadastro de todas as empresas do país, com endereço, porte e sócios.
@@ -56,6 +88,15 @@ portal_transparencia:
   sonda:
     url: https://api.portaldatransparencia.gov.br/api-de-dados/despesas/documentos
     status_ok: [200, 401]    # 401 = de pé, exigindo o header chave-api-dados
+  guarda:
+    modo: colheita
+    medido_em: 2026-08-16
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      API com filtro e limite de 90 requisições por minuto. Guardamos as
+      respostas de cada execução; espelhar o acervo da CGU seria copiar um
+      serviço que já é consultável por recorte.
   ficha:
     orgao: Controladoria-Geral da União (CGU)
     publica: >-
@@ -73,6 +114,21 @@ pncp:
     # a raiz de /api/consulta derruba a conexão (RST); o swagger responde e
     # traz Last-Modified, que denuncia mudança de versão da API
     url: https://pncp.gov.br/api/consulta/swagger-ui/index.html
+  guarda:
+    modo: recorte
+    medido_em: 2026-08-16
+    volume_gb: 57.7
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      Medido em 16/08/2026: 863 KB para um município em um mês, o que dá 57,7 GB
+      por ano para o país e entre 4,6 h e 18,6 h de execução contra 6 h de teto do
+      runner. Publicar no PNCP é condição de validade do contrato (Lei 14.133),
+      então a fonte não corre risco de sumir e o recorte basta.
+    recorte:
+      pactuado_em: null
+      municipios: []
+      periodo: []
   ficha:
     orgao: Portal Nacional de Contratações Públicas (PNCP)
     publica: As compras e os contratos de órgãos públicos de todo o país.
@@ -87,6 +143,16 @@ ibge:
   sonda:
     # /api/v1/localidades responde 400 a HEAD; o SIDRA responde 200 com Content-Length
     url: https://apisidra.ibge.gov.br/values/t/6579/n6/2611101/v/9324/p/last%201
+  guarda:
+    modo: colheita
+    medido_em: 2026-08-16
+    volume_gb: 0.004
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      Medido em 16/08/2026: 621 bytes para a população de um município e 2,2 KB
+      para sete numa consulta só. O país inteiro cabe em poucos MB de respostas
+      guardadas — a fonte mais estável do ecossistema não precisa de espelho.
   ficha:
     orgao: IBGE
     publica: Quanta gente mora em cada cidade, e os números do Censo.
@@ -102,6 +168,15 @@ tse:
     # o CKAN alterna respostas de tamanhos diferentes para a mesma consulta
     # (20 → 982 em requests consecutivos, medido em 2026-07-26)
     detectar_mudanca: false
+  guarda:
+    modo: nenhuma
+    medido_em: 2026-08-16
+    risco_sumico: medio
+    onde: actions
+    motivo: >-
+      Ainda não guardamos nada do TSE e o volume não foi medido. O espelho de
+      2026 é prioridade declarada em ARQUITETURA, mas entra depois de medido:
+      declarar guarda integral sem medir seria prometer bytes que não cabem.
   ficha:
     orgao: Tribunal Superior Eleitoral (TSE)
     publica: Quem se candidatou, quanto gastou na campanha e o resultado de cada urna.
@@ -115,6 +190,14 @@ bcb:
   sonda:
     # sgs_base é prefixo (404 sozinho); série 432 = Selic meta, sempre presente
     url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json
+  guarda:
+    modo: colheita
+    medido_em: 2026-08-16
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      Séries consultáveis por código e janela de dez anos. Guardamos as respostas
+      das séries que viram indicador, não o catálogo inteiro do Banco Central.
   ficha:
     orgao: Banco Central
     publica: Séries de preços, juros e crédito, além dos números do Pix.
@@ -136,6 +219,16 @@ inep:
     # Sondar dali produziria um alarme falso por dia. Vale para o espelho também:
     # o INEP foi espelhado da máquina local, e re-espelhar exige rede brasileira.
     bloqueia_datacenter: true
+  guarda:
+    modo: integral
+    medido_em: 2026-07-27
+    volume_gb: 0.19
+    risco_sumico: alto
+    onde: brasil
+    motivo: >-
+      Fonte com apagão comprovado: o Ideb de 2019 e 2021 já responde 404 na
+      origem. Guarda integral mesmo sem indicador publicado — bytes se compram,
+      série apagada não volta. A aquisição não roda no Actions.
   ficha:
     orgao: Inep (Ministério da Educação)
     publica: >-
@@ -180,6 +273,16 @@ snis:
   sinisa: https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/saneamento/sinisa
   ckan: https://dadosabertos.cidades.gov.br/pt_PT/dataset/snis-serie-historica
   # espelho: pendente — ver docs/ESCOPO.md M0.5.2 e a decisão registrada em FONTES.md §7
+  guarda:
+    modo: nenhuma
+    medido_em: 2026-07-27
+    risco_sumico: alto
+    onde: nenhum
+    motivo: >-
+      Não há caminho programático: o endereço antigo não resolve DNS, o novo
+      responde 403 de appliance e o catálogo federal só guarda um link para a
+      página morta. Guardar exigiria download manual pelo navegador ou fonte de
+      terceiro. É o caso extremo do risco que a guarda integral existe para evitar.
   ficha:
     orgao: Ministério das Cidades
     publica: Quanta gente tem água tratada e coleta de esgoto em cada cidade.
@@ -198,6 +301,22 @@ datasus:
   # preferir pysus para download + conversão DBC->parquet
   # sem sonda: só existe por FTP (porta 443 do host dá timeout) — watcher v2
   #
+  guarda:
+    modo: integral
+    medido_em: 2026-07-27
+    volume_gb: 1.88
+    risco_sumico: medio
+    onde: actions
+    motivo: >-
+      Os agregados nacionais de mortalidade e nascimento cabem em 1,9 GB e são a
+      base dos indicadores de saúde da fila. O SIH fica de fora por enquanto.
+    recusado:
+      - alvo: SIH (internações), 66 GB
+        motivo: >-
+          Só existe por UF e mês, sem filtro por município na origem. São 6,6x o
+          plano de storage inteiro para sustentar nenhum indicador pactuado.
+          Reavaliar quando houver indicador de saúde com direção definida — e aí
+          entra por recorte, ano a ano, nunca integral.
   ficha:
     orgao: DataSUS (Ministério da Saúde)
     publica: Registros de nascimentos, mortes e internações no SUS, cidade por cidade.
@@ -237,6 +356,17 @@ rais_caged:
   # sem sonda: só FTP; o portal pdet.mte.gov.br está com certificado TLS inválido
   # (verificado em 2026-07-26) e não serve como substituto
   #
+  guarda:
+    modo: integral
+    medido_em: 2026-07-27
+    volume_gb: 0.0001
+    volume_previsto_gb: 3.98
+    risco_sumico: medio
+    onde: actions
+    motivo: >-
+      O CAGED de 2026 e a RAIS 2024 somam cerca de 4 GB e sustentam o indicador de
+      emprego formal, que tem direção pactuada. Entram depois do espelho B2: a RAIS
+      sozinha triplica o que se perde de uma vez enquanto o acervo tem cópia única.
   ficha:
     orgao: Ministério do Trabalho e Emprego
     publica: >-
@@ -266,6 +396,15 @@ datajud:
   sonda:
     url: https://api-publica.datajud.cnj.jus.br/api_publica_tjpe/_search
     status_ok: [200, 401]    # 401 = de pé, exigindo APIKey
+  guarda:
+    modo: colheita
+    medido_em: 2026-08-16
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      Consulta por tribunal e classe, com APIKey pública e limite de 120
+      requisições por minuto. Guardaríamos as respostas do recorte que virar
+      indicador — o acervo tem 352 milhões de documentos e não nos cabe.
   ficha:
     orgao: Conselho Nacional de Justiça (CNJ)
     publica: >-
@@ -279,6 +418,15 @@ querido_diario:
   rate_limit: 60             # req/min de cortesia; exige User-Agent de navegador
   sonda:
     url: https://queridodiario.ok.org.br/api/gazettes?territory_ids=2611101&size=1
+  guarda:
+    modo: nenhuma
+    medido_em: 2026-08-16
+    risco_sumico: baixo
+    onde: actions
+    motivo: >-
+      Nenhum indicador da fila depende de diário oficial hoje, e a Open Knowledge
+      mantém o acervo com política própria. Fica catalogada como fonte consultável
+      para apuração pontual, sem coleta nossa.
   ficha:
     # única fonte do catálogo que não é de órgão público — e a ficha diz isso
     orgao: Open Knowledge Brasil (organização da sociedade civil)
