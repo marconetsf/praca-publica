@@ -25,6 +25,18 @@ DIM = [
         "N|20k_50k",
         False,
     ),
+    # na dimensão e sem nenhuma linha no fato: o caso dos 7 que sumiam
+    (
+        "2600054",
+        "Abreu e Lima",
+        "abreu-e-lima",
+        "PE",
+        "NE",
+        100000,
+        "100k_500k",
+        "NE|100k_500k",
+        False,
+    ),
 ]
 
 FATO = [
@@ -178,6 +190,63 @@ def test_posicao_relativa_ao_grupo_e_textual(gerados):
         if i["id"] == "siconfi_despesa_educacao_pc"
     )
     assert educacao["comparacao"]["texto"] == "1º entre os 7 parecidos"
+
+
+# ------------------------------------------------- município sem nenhum dado
+
+
+def test_municipio_sem_nenhum_indicador_ainda_tem_pagina(marts, tmp_path):
+    """Regra de ferro: ausência é informação (PRODUTO §2.5).
+
+    Bug real: 7 municípios do Norte — 112 mil habitantes — não tinham página
+    nenhuma, porque `gerar` iterava sobre o fato e quem não declarou não tem
+    linha nele. Justamente os entes sobre os quais há algo a dizer sumiam.
+    """
+    destino = tmp_path / "serving"
+    serving.gerar(
+        marts["dim"],
+        marts["fato"],
+        marts["dim_indicador"],
+        destino,
+        ano=2024,
+        coletado_em="2026-08-16",
+        # 2600054 está na dimensão e não tem uma linha sequer no fato
+        universo=["1400100", "1100015", "2600054"],
+    )
+
+    arquivo = destino / "municipio" / "2600054.json"
+    assert arquivo.exists(), "município sem dado precisa de página, não de silêncio"
+
+    dados = json.loads(arquivo.read_text(encoding="utf-8"))
+    assert dados["nome"]
+    assert dados["indicadores"] == []
+    assert dados["sem_nenhum_dado"] is True
+
+
+def test_municipio_sem_dado_entra_no_indice_de_busca(marts, tmp_path):
+    """Se não estiver na busca, a página existe e ninguém a encontra."""
+    destino = tmp_path / "serving"
+    serving.gerar(
+        marts["dim"],
+        marts["fato"],
+        marts["dim_indicador"],
+        destino,
+        ano=2024,
+        universo=["1400100", "2600054"],
+    )
+    indice = json.loads((destino / "busca.json").read_text(encoding="utf-8"))
+    assert "2600054" in {m["codigo_ibge"] for m in indice}
+
+
+def test_sem_universo_publica_so_quem_tem_dado(marts, tmp_path):
+    """Compatibilidade: sem universo declarado, o comportamento antigo vale."""
+    destino = tmp_path / "serving"
+    serving.gerar(marts["dim"], marts["fato"], marts["dim_indicador"], destino, ano=2024)
+    assert not (destino / "municipio" / "2600054.json").exists()
+
+
+def test_municipio_com_dado_nao_e_marcado_como_vazio(gerados):
+    assert _ler(gerados, "1400100")["sem_nenhum_dado"] is False
 
 
 # ------------------------------------------------- "como esse cálculo foi feito?"
