@@ -1,8 +1,8 @@
 # Escopo de Desenvolvimento — Praça Pública
 
 > Documento-mestre da fase de especificação, fechado em 26/07/2026.
-> Detalhes por área: [ARQUITETURA.md](ARQUITETURA.md) · [PRODUTO.md](PRODUTO.md) ·
-> [CRESCIMENTO.md](CRESCIMENTO.md) · [SEGURANCA.md](SEGURANCA.md) · [OPERACAO.md](OPERACAO.md) ·
+> Detalhes por área: [ARQUITETURA.md](arquitetura/ARQUITETURA.md) · [PRODUTO.md](produto/PRODUTO.md) ·
+> [CRESCIMENTO.md](engajamento/CRESCIMENTO.md) · [SEGURANCA.md](infra/SEGURANCA.md) · [OPERACAO.md](infra/OPERACAO.md) ·
 > catálogo de fontes em [../FONTES.md](../FONTES.md).
 
 ## 1. Visão

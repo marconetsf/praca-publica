@@ -8,17 +8,52 @@ Dados públicos brasileiros → parquet → cruzamentos → site que o cidadão 
 
 ## Mapa dos documentos (ler antes de propor qualquer mudança)
 
+Os documentos são organizados por **braço** — as frentes que crescem ao longo do projeto.
+Cada braço tem um agente especializado em `.claude/agents/`, com as restrições que ele não
+pode reabrir. Documento novo entra na pasta do braço, não na raiz.
+
+### Transversais
+
 | Arquivo | O que contém | Consultar quando... |
 |---|---|---|
 | **[docs/ESTADO.md](docs/ESTADO.md)** | **Estado atual + fila de trabalho + pendências + armadilhas** | **sempre, antes de tudo** |
-| [docs/ESCOPO.md](docs/ESCOPO.md) | **Documento-mestre**: visão, princípios inegociáveis, decisões consolidadas, roadmap M0→M5 com critérios de pronto, riscos, MoSCoW, pendências do usuário | for começar qualquer tarefa — é o índice de tudo |
-| [FONTES.md](FONTES.md) | Catálogo das fontes de dados (URLs verificadas, formatos, volumes, riscos por fonte, chaves de cruzamento) | for mexer em ingestão ou adicionar fonte |
-| [docs/ARQUITETURA.md](docs/ARQUITETURA.md) | Storage (parquet+manifesto), R2/Actions/VPS, topologia de buckets, serving, schema dos marts, custos, backup | for decidir onde/como guardar ou servir dado |
-| [docs/OPERACAO.md](docs/OPERACAO.md) | Workflows, gatilhos para Dagster, watcher, CI/CD, gates de qualidade (contratos YAML), observabilidade, SLAs | for criar pipeline, workflow ou check |
-| [docs/PRODUTO.md](docs/PRODUTO.md) | Rotas, página de município, **régua única de comparação (§2 regra 3)**, design system, acessibilidade, stack Astro+Pages | for trabalhar no site |
-| [docs/CRESCIMENTO.md](docs/CRESCIMENTO.md) | 12 insights com cuidados editoriais, share cards/OG, calendário, Lei 9.504, métricas | for criar insight, card ou texto público |
-| [docs/SEGURANCA.md](docs/SEGURANCA.md) | LGPD (LIA/RIPD/n<5/anti-CPF), regras editoriais da Fase 2, segredos/buckets, checklist pré-lançamento | for publicar dado ou tocar em infra/segredos |
+| [docs/ESCOPO.md](docs/ESCOPO.md) | **Documento-mestre**: visão, princípios inegociáveis, decisões consolidadas, roadmap M0→M6, riscos, MoSCoW | for começar qualquer tarefa — é o índice de tudo |
+| [FONTES.md](FONTES.md) | Catálogo das fontes (URLs verificadas, formatos, volumes, riscos, chaves de cruzamento) | for mexer em ingestão ou adicionar fonte |
 | [config/fontes.yaml](config/fontes.yaml) | **Fonte da verdade de URLs** — pipelines nunca hardcodam endereço | sempre que uma URL de fonte mudar |
+
+### Ciência política — o que vale a pena medir · agente `ciencia-politica`
+
+| Arquivo | O que contém |
+|---|---|
+| [INDICADORES.md](docs/ciencia-politica/INDICADORES.md) | Critério de admissão de métrica, por que não fazemos índice composto, fila priorizada |
+| [CHECKLIST-INDICADORES.md](docs/ciencia-politica/CHECKLIST-INDICADORES.md) | Progresso por etapa de cada indicador e os bloqueios de cada um |
+| [TRANSPARENCIA.md](docs/ciencia-politica/TRANSPARENCIA.md) | Métrica de quanto cada ente informou; taxonomia da ausência |
+
+### Arquitetura da solução — como o sistema absorve o imprevisto · agente `arquitetura`
+
+| Arquivo | O que contém |
+|---|---|
+| [ARQUITETURA.md](docs/arquitetura/ARQUITETURA.md) | Storage, R2/Actions/VPS, topologia de buckets, serving, schema dos marts, custos, backup |
+| `pipelines/marts/contrato.py` | **Contrato de indicador**: cobertura, universo, confiabilidade, esfera, natureza do dado |
+
+### Infra — onde roda e como não vaza · agente `infra`
+
+| Arquivo | O que contém |
+|---|---|
+| [OPERACAO.md](docs/infra/OPERACAO.md) | Workflows, watcher, CI/CD, gates de qualidade, observabilidade, SLAs |
+| [SEGURANCA.md](docs/infra/SEGURANCA.md) | LGPD (LIA/RIPD/n<5/anti-CPF), regras editoriais, segredos/buckets, checklist pré-lançamento |
+
+### Produto — a página que o cidadão lê · agente `design-praca`
+
+| Arquivo | O que contém |
+|---|---|
+| [PRODUTO.md](docs/produto/PRODUTO.md) | Rotas, página de município, **régua única de comparação (§2 regra 3)**, design system, acessibilidade |
+
+### Engajamento — fazer o dado circular · agente `engajamento`
+
+| Arquivo | O que contém |
+|---|---|
+| [CRESCIMENTO.md](docs/engajamento/CRESCIMENTO.md) | 12 insights com cuidados editoriais, share cards/OG, calendário, Lei 9.504, métricas |
 
 ## Regras que nenhuma mudança pode violar (detalhes em ESCOPO.md §1)
 

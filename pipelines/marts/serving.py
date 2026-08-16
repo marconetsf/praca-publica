@@ -56,8 +56,13 @@ def _montar(linhas, indicadores: dict, ano: int, coletado_em: str) -> dict:
         "eh_capital": primeira["eh_capital"],
         "ano_referencia": ano,
         "coletado_em": coletado_em,
+        # município que não entregou nada tem página e diz isso; sumir do site
+        # seria apagar justamente o ente sobre o qual há algo a informar
+        "sem_nenhum_dado": not primeira.get("indicador_id"),
         "indicadores": [],
     }
+    if municipio["sem_nenhum_dado"]:
+        return municipio
 
     for linha in linhas:
         meta = indicadores[linha["indicador_id"]]
@@ -112,8 +117,15 @@ def gerar(
     *,
     ano: int,
     coletado_em: str | None = None,
+    universo: list[str] | None = None,
 ) -> int:
-    """Escreve `municipio/{codigo}.json` + `busca.json`. Devolve quantos municípios."""
+    """Escreve `municipio/{codigo}.json` + `busca.json`. Devolve quantos municípios.
+
+    `universo` é a lista de municípios que **deveriam** ter página — tipicamente
+    todos os das UFs já coletadas. Quem está no universo e não tem nenhuma linha
+    no fato ganha página de ausência, em vez de sumir do site: era o caso de 7
+    municípios do Norte, 112 mil habitantes, invisíveis porque não declararam.
+    """
     coletado_em = coletado_em or date.today().isoformat()
     dim = parquet._posix(dim_parquet)
     fato = parquet._posix(fato_parquet)
@@ -173,6 +185,29 @@ def gerar(
         registro = dict(zip(colunas, linha, strict=True))
         por_municipio.setdefault(registro["codigo_municipio_ibge"], []).append(registro)
 
+    if universo:
+        faltantes = [codigo for codigo in universo if codigo not in por_municipio]
+        if faltantes:
+            lista = ", ".join(f"'{c}'" for c in faltantes)
+            identificacao = con.sql(f"""
+                SELECT codigo_municipio_ibge, nome, slug, uf, regiao,
+                       populacao_referencia, faixa_porte, eh_capital
+                FROM '{dim}' WHERE codigo_municipio_ibge IN ({lista})
+            """).fetchall()
+            campos = (
+                "codigo_municipio_ibge",
+                "nome",
+                "slug",
+                "uf",
+                "regiao",
+                "populacao_referencia",
+                "faixa_porte",
+                "eh_capital",
+            )
+            for linha in identificacao:
+                registro = dict(zip(campos, linha, strict=True))
+                por_municipio[registro["codigo_municipio_ibge"]] = [registro]
+
     pasta = Path(destino)
     (pasta / "municipio").mkdir(parents=True, exist_ok=True)
 
@@ -196,18 +231,49 @@ def gerar(
     return len(indice)
 
 
+def universo_coletado(dim_parquet, ano: int) -> list[str]:
+    """Municípios que já deveriam ter página: todos das UFs com staging do ano.
+
+    Deriva das UFs presentes no staging — a fonte da verdade sobre o que foi
+    coletado. Município que não declarou não aparece no staging, mas a UF dele
+    sim, e é assim que ele volta para a lista.
+    """
+    prefixo = storage.uri("staging", "siconfi", "dca", f"an_exercicio={ano}", "*")
+    ufs = sorted(
+        {
+            caminho.rstrip("/").split("uf=")[-1]
+            for caminho in storage.listar(prefixo)
+            if "uf=" in caminho
+        }
+    )
+    if not ufs:
+        return []
+
+    lista = ", ".join(f"'{uf}'" for uf in ufs)
+    con = parquet.conectar(parquet._posix(dim_parquet))
+    return [
+        linha[0]
+        for linha in con.sql(f"""
+            SELECT codigo_municipio_ibge FROM '{parquet._posix(dim_parquet)}'
+            WHERE uf IN ({lista}) ORDER BY 1
+        """).fetchall()
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ano", type=int, default=2024)
     parser.add_argument("--destino", default="site/public/dados")
     args = parser.parse_args()
 
+    dim = storage.uri("marts", "dim_municipio.parquet")
     total = gerar(
-        storage.uri("marts", "dim_municipio.parquet"),
+        dim,
         storage.uri("marts", f"fato_indicador_municipio/ano={args.ano}", "fato.parquet"),
         storage.uri("marts", "dim_indicador.parquet"),
         args.destino,
         ano=args.ano,
+        universo=universo_coletado(dim, args.ano),
     )
     print(f"{total} municípios em {args.destino}/municipio/")
 

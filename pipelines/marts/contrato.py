@@ -12,7 +12,7 @@ de graça: a lacuna aparece no gráfico, "não se aplica" se separa de "não
 declarou", e o valor instável é suprimido com motivo escrito.
 
 O que **não** está aqui de propósito: nada decide se a métrica é relevante. Isso
-é julgamento editorial, mora em docs/INDICADORES.md, e não deve virar código.
+é julgamento editorial, mora em docs/ciencia-politica/INDICADORES.md, e não deve virar código.
 """
 
 from dataclasses import dataclass, field
