@@ -69,9 +69,11 @@ O bug dos **7 municípios órfãos** já está corrigido (`serving.gerar(univers
 declarou nada agora tem página dizendo isso, em vez de sumir do site. Restam três entregas,
 nesta ordem:
 
-1. **Publicar `/fontes`** — uma ficha por órgão federal: o que ele publica, com que atraso, o
-   que já conseguimos e o que está bloqueado. É a contrapartida honesta de cobrar transparência
-   dos municípios.
+1. ~~**Publicar `/fontes`**~~ — feito em 16/08/2026. 13 fichas, uma por fonte do catálogo, com
+   situação derivada dos fatos (indicador publicado, manifesto do espelho, estado do watcher) —
+   nunca declarada à mão. Regra editorial: a página **não acusa o órgão**; falha da nossa sonda
+   vira "pode ser bloqueio ao nosso acesso", e falha isolada é distinguida de queda persistente.
+   Fonte nova sem `ficha:` no `fontes.yaml` **quebra o teste** — não some da página em silêncio.
 2. **Menu de feedback** para o leitor contestar uma ausência ("meu município declarou, sim").
    Sem coleta de dado pessoal além do necessário para responder.
 3. **Publicar a fração de transparência** por município, com o enquadramento acordado:
@@ -134,6 +136,12 @@ Ver ESCOPO §3.
 - **A máquina de desenvolvimento sai da Espanha** (IP residencial em Madri). Portal gov.br que
   responde 403 ou não responde pode estar geobloqueando, não caído — é o caso suspeito do
   `dadosabertos.aneel.gov.br`. Confirme de rede brasileira antes de declarar fonte morta.
+
+- **O runner do Actions também falha sozinho.** Em 15/08/2026 quatro fontes (IBGE, PNCP, CNJ,
+  Receita) deram `ConnectTimeout` na **mesma** execução do watcher e responderam 200 daqui
+  minutos depois. Quatro falhas simultâneas apontam para a saída de rede do runner, não para os
+  órgãos — por isso `FALHAS_PARA_ALERTAR = 2` e por isso `/fontes` mostra há quantas checagens
+  seguidas a fonte não responde. Só reaja a falha que se repete.
 
 - O `LIST` do FTP do DataSUS e do PDET vem em **formato MS-DOS**, não Unix.
 - O FTP do MTPS devolve **nomes de arquivo em latin-1** (`ftp_encoding` no YAML).

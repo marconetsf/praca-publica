@@ -5,6 +5,12 @@
 # REAL, não o prefixo usado para montar URL — `api_base` cru costuma devolver 404 ou 401 e
 # encheria o canal de alarme falso. `status_ok` declara os status que significam "de pé"
 # (401 de quem exige token é resposta saudável). Fonte sem `sonda:` não é vigiada.
+#
+# `ficha:` é o que o cidadão lê em /fontes (pipelines/marts/fontes.py). Só o que nenhum
+# fato revela sozinho: nome do órgão, o que ele publica em português, endereço oficial e o
+# motivo de um bloqueio. A situação ("no site", "guardado", "bloqueado") NÃO se declara
+# aqui — ela é derivada dos indicadores publicados, do manifesto e do watcher, senão a
+# página envelheceria mentindo. `pagina_oficial` verificada por acesso real em 2026-08-16.
 
 siconfi:
   api_base: https://apidatalake.tesouro.gov.br/ords/siconfi/tt
@@ -12,6 +18,13 @@ siconfi:
   encoding: utf-8
   sonda:
     url: https://apidatalake.tesouro.gov.br/ords/siconfi/tt/entes?an_exercicio=2024
+  ficha:
+    orgao: Tesouro Nacional
+    publica: >-
+      As contas de cada prefeitura e de cada estado: quanto entrou de dinheiro e
+      quanto saiu em cada área.
+    atualizacao: Uma vez por ano. As contas de 2024 só ficaram completas em 2025.
+    pagina_oficial: https://siconfi.tesouro.gov.br/siconfi/index.jsf
 
 cnpj_rfb:
   # compartilhamento Nextcloud da Receita; pastas mensais AAAA-MM
@@ -27,6 +40,11 @@ cnpj_rfb:
     # (8174 → 8177 em 2 s, medido em 2026-07-26). Vigiar só disponibilidade;
     # dump novo é detectado pelo pipeline da Fase 2, não pelo watcher.
     detectar_mudanca: false
+  ficha:
+    orgao: Receita Federal
+    publica: O cadastro de todas as empresas do país, com endereço, porte e sócios.
+    atualizacao: Uma vez por mês.
+    pagina_oficial: https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj
 
 portal_transparencia:
   api_base: https://api.portaldatransparencia.gov.br/api-de-dados
@@ -38,6 +56,14 @@ portal_transparencia:
   sonda:
     url: https://api.portaldatransparencia.gov.br/api-de-dados/despesas/documentos
     status_ok: [200, 401]    # 401 = de pé, exigindo o header chave-api-dados
+  ficha:
+    orgao: Controladoria-Geral da União (CGU)
+    publica: >-
+      Para onde vai o dinheiro do governo federal: contratos, obras e auxílios
+      pagos a famílias.
+    atualizacao: Varia por base. Algumas mudam todo dia, outras uma vez por mês.
+    # o site público responde 405 a cliente automatizado (WAF); no navegador abre normal
+    pagina_oficial: https://portaldatransparencia.gov.br/download-de-dados
 
 pncp:
   api_base: https://pncp.gov.br/api/consulta
@@ -47,6 +73,11 @@ pncp:
     # a raiz de /api/consulta derruba a conexão (RST); o swagger responde e
     # traz Last-Modified, que denuncia mudança de versão da API
     url: https://pncp.gov.br/api/consulta/swagger-ui/index.html
+  ficha:
+    orgao: Portal Nacional de Contratações Públicas (PNCP)
+    publica: As compras e os contratos de órgãos públicos de todo o país.
+    atualizacao: Quase em tempo real — o órgão precisa publicar ali para o contrato valer.
+    pagina_oficial: https://www.gov.br/pncp/pt-br
 
 ibge:
   api_docs: https://servicodados.ibge.gov.br/api/docs
@@ -56,6 +87,11 @@ ibge:
   sonda:
     # /api/v1/localidades responde 400 a HEAD; o SIDRA responde 200 com Content-Length
     url: https://apisidra.ibge.gov.br/values/t/6579/n6/2611101/v/9324/p/last%201
+  ficha:
+    orgao: IBGE
+    publica: Quanta gente mora em cada cidade, e os números do Censo.
+    atualizacao: O Censo é de dez em dez anos. A conta de moradores sai todo ano.
+    pagina_oficial: https://sidra.ibge.gov.br/
 
 tse:
   ckan_base: https://dadosabertos.tse.jus.br
@@ -66,6 +102,11 @@ tse:
     # o CKAN alterna respostas de tamanhos diferentes para a mesma consulta
     # (20 → 982 em requests consecutivos, medido em 2026-07-26)
     detectar_mudanca: false
+  ficha:
+    orgao: Tribunal Superior Eleitoral (TSE)
+    publica: Quem se candidatou, quanto gastou na campanha e o resultado de cada urna.
+    atualizacao: A cada eleição, e todo dia no período de campanha.
+    pagina_oficial: https://dadosabertos.tse.jus.br/
 
 bcb:
   sgs_base: https://api.bcb.gov.br/dados/serie
@@ -74,6 +115,11 @@ bcb:
   sonda:
     # sgs_base é prefixo (404 sozinho); série 432 = Selic meta, sempre presente
     url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json
+  ficha:
+    orgao: Banco Central
+    publica: Séries de preços, juros e crédito, além dos números do Pix.
+    atualizacao: Depende da série. Algumas mudam todo dia, outras uma vez por mês.
+    pagina_oficial: https://dadosabertos.bcb.gov.br/
 
 inep:
   portal: https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados
@@ -90,6 +136,16 @@ inep:
     # Sondar dali produziria um alarme falso por dia. Vale para o espelho também:
     # o INEP foi espelhado da máquina local, e re-espelhar exige rede brasileira.
     bloqueia_datacenter: true
+  ficha:
+    orgao: Inep (Ministério da Educação)
+    publica: >-
+      Os dados de cada escola do país: alunos, turmas, professores e notas.
+    atualizacao: Uma vez por ano, com quase um ano de atraso.
+    pagina_oficial: https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados
+    bloqueio: >-
+      O servidor do Inep recusa conexão vinda de máquinas de nuvem. Por isso os
+      arquivos foram guardados de um computador comum, e não pela rotina
+      automática. Parte da série do Ideb já saiu do ar antes de guardarmos.
   # Onda 1 do M0.5: o INEP apagou séries em 2022 e nunca republicou completas.
   # Confirmado em 2026-07-26: IDEB de 2019 e 2021 já responde 404 nestas URLs —
   # sobrou só 2023. Espelhar o que ainda existe, antes das eleições.
@@ -124,12 +180,32 @@ snis:
   sinisa: https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/saneamento/sinisa
   ckan: https://dadosabertos.cidades.gov.br/pt_PT/dataset/snis-serie-historica
   # espelho: pendente — ver docs/ESCOPO.md M0.5.2 e a decisão registrada em FONTES.md §7
+  ficha:
+    orgao: Ministério das Cidades
+    publica: Quanta gente tem água tratada e coleta de esgoto em cada cidade.
+    atualizacao: A coleta parou em 2023. O sistema novo, o Sinisa, ainda não publicou a série.
+    pagina_oficial: https://www.gov.br/cidades/pt-br/acesso-a-informacao/acoes-e-programas/saneamento/snis
+    nao_vigiada: >-
+      não sobrou endereço que responda, e o bloqueio do portal não distingue
+      fonte no ar de fonte apagada
+    bloqueio: >-
+      A série histórica saiu do ar. O endereço antigo não existe mais, o novo
+      barra o acesso automático, e o catálogo do governo federal só guarda um
+      link para a página que morreu.
 
 datasus:
   ftp: ftp://ftp.datasus.gov.br/dissemin/publicos/
   # preferir pysus para download + conversão DBC->parquet
   # sem sonda: só existe por FTP (porta 443 do host dá timeout) — watcher v2
   #
+  ficha:
+    orgao: DataSUS (Ministério da Saúde)
+    publica: Registros de nascimentos, mortes e internações no SUS, cidade por cidade.
+    atualizacao: >-
+      Todo mês para internações. Mortes e nascimentos levam de um a dois anos
+      para fechar.
+    pagina_oficial: https://datasus.saude.gov.br/transferencia-de-arquivos/
+    nao_vigiada: só existe por FTP, e o vigia automático hoje só fala HTTP
   # Onda 2 do M0.5 — "DataSUS alvo": os agregados NACIONAIS (DOBR/DNBR), não os
   # 812 arquivos por UF. O SIM tem a série nacional completa de mortalidade
   # 1996–2024 (2,4 GB); o SINASC só publica nacional de 2014 a 2017 — os demais
@@ -161,6 +237,18 @@ rais_caged:
   # sem sonda: só FTP; o portal pdet.mte.gov.br está com certificado TLS inválido
   # (verificado em 2026-07-26) e não serve como substituto
   #
+  ficha:
+    orgao: Ministério do Trabalho e Emprego
+    publica: >-
+      Quem entrou e quem saiu de um emprego com carteira, em cada cidade, e o
+      valor do salário.
+    atualizacao: >-
+      O Caged sai todo mês. A Rais sai uma vez por ano, com cerca de um ano de
+      atraso.
+    pagina_oficial: https://dados.gov.br/dados/conjuntos-dados/caged
+    nao_vigiada: >-
+      só existe por FTP, e o portal do PDET está com certificado vencido — não
+      serve de substituto
   # Onda 2 — "CAGED/RAIS recentes": CAGED de 2026 (até 202605, o último
   # publicado) e RAIS 2024, o exercício fechado mais recente.
   # Mês novo do CAGED entra editando esta lista.
@@ -178,9 +266,22 @@ datajud:
   sonda:
     url: https://api-publica.datajud.cnj.jus.br/api_publica_tjpe/_search
     status_ok: [200, 401]    # 401 = de pé, exigindo APIKey
+  ficha:
+    orgao: Conselho Nacional de Justiça (CNJ)
+    publica: >-
+      Os processos de todos os tribunais, sem o conteúdo: só a data, o assunto e
+      o andamento.
+    atualizacao: Todo dia.
+    pagina_oficial: https://datajud-wiki.cnj.jus.br/api-publica/
 
 querido_diario:
   api_base: https://api.queridodiario.ok.org.br
   rate_limit: 60             # req/min de cortesia; exige User-Agent de navegador
   sonda:
     url: https://queridodiario.ok.org.br/api/gazettes?territory_ids=2611101&size=1
+  ficha:
+    # única fonte do catálogo que não é de órgão público — e a ficha diz isso
+    orgao: Open Knowledge Brasil (organização da sociedade civil)
+    publica: Os diários oficiais de centenas de cidades, com busca por palavra.
+    atualizacao: Todo dia, nas cidades que já entraram no projeto.
+    pagina_oficial: https://queridodiario.ok.org.br/

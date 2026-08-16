@@ -19,6 +19,10 @@
                                      NÃO pré-renderizada (pares de municípios explodem o limite
                                      de 20k arquivos do Pages); sem promessa de indexação
 /metodologia e /metodologia/{indicador}
+/fontes                              Ficha por órgão: o que publica, com que atraso, o que já está
+                                     no site, o que está guardado e o que está bloqueado. Gerada por
+                                     `pipelines/marts/fontes.py` — a situação é DERIVADA dos fatos
+                                     (indicador publicado, manifesto, watcher), nunca declarada à mão
 /dados                               Bulk download (parquet/CSV), licenças, changelog
 /erratas                             Correções públicas, com RSS
 /sobre                               Quem faz, financiamento, política editorial
@@ -112,6 +116,7 @@ JSON-LD: `City` (com código IBGE em `identifier`), `BreadcrumbList`, `Dataset` 
 
 - **Proveniência em todo número**: órgão + data de referência + data de coleta (separadas — a diferença é a defasagem que o leitor precisa conhecer). Cumpre atribuição (TSE CC-BY; BCB/ANEEL ODbL) e é a defesa editorial.
 - **`/metodologia/{indicador}`**: o que mede (linguagem simples), fórmula exata, fonte, defasagem, **limitações conhecidas** (lacuna SICONFI ~25%, subnotificação SIM/SINASC), faixas do semáforo e direção assumida.
+- **`/fontes`**: a contrapartida de cobrar transparência dos entes. Quatro estados, derivados: **no site**, **guardado** (espelhado, ainda sem virar indicador), **ainda não fomos buscar** e **fora do alcance** (com o motivo por extenso). Duas regras editoriais fortes: a página **nunca acusa o órgão** — falha da nossa sonda vira "pode ser bloqueio ao nosso acesso", e falha isolada é distinguida de queda persistente pelo número de checagens seguidas; e **nenhum rastro técnico** (exceção de Python, host, porta) chega ao leitor.
 - **`/dados`**: parquet + CSV dos marts, dicionário, manifesto (sha256 por fonte), licenças (CC-BY nossos agregados; ODbL onde herdado), changelog.
 - **Política de erro em `/sobre`** + `/erratas` com RSS (ver SEGURANCA.md §5).
 - **Ano eleitoral**: banner permanente "A Praça Pública não apoia candidatos..."; **metodologia congelada de agosto à diplomação**.

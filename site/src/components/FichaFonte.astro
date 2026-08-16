@@ -1,0 +1,143 @@
+---
+/**
+ * A ficha de uma fonte de dados.
+ *
+ * Quatro respostas, na ordem em que o leitor pergunta: quem é o órgão, o que
+ * ele publica, de quanto em quanto tempo, e o que nós conseguimos dele. O
+ * bloqueio, quando existe, vem por último e por extenso — é a informação que a
+ * página existe para dar, e escondê-la atrás de um ícone seria contraditório.
+ *
+ * A ficha nunca julga o órgão. "Não respondeu na última checagem" é fato com
+ * data; "fonte ruim" seria opinião, e opinião sobre terceiro não é o negócio
+ * deste site.
+ */
+import { formatarBytes, formatarData } from "../dados.js";
+
+const { fonte } = Astro.props;
+
+// Uma falha isolada é rotina em servidor público — em 15/08/2026 quatro fontes
+// falharam na mesma execução e respondiam normalmente de outra rede. Só a partir
+// da segunda checagem seguida sem resposta a frase muda de tom.
+const VIGILANCIA = {
+  responde: (dia) => `Respondeu na última checagem, em ${dia}.`,
+  sem_resposta: (dia, falhas) =>
+    falhas > 1
+      ? `Não responde há ${falhas} checagens seguidas. A última foi em ${dia}.`
+      : `Não respondeu na checagem de ${dia}. Falha isolada é comum.`,
+  nao_verificavel: (dia) => `Não conseguimos checar em ${dia}.`,
+};
+
+const vig = fonte.vigilancia;
+const dia = vig.visto_em ? formatarData(vig.visto_em) : null;
+// Fonte não vigiada tem o motivo emendado com dois-pontos: "não entra na
+// checagem diária: só existe por FTP". Duas frases soltas ficariam com a
+// segunda começando em minúscula.
+const textoVigilancia = !vig.vigiada
+  ? `Esta fonte não entra na checagem diária${vig.observacao ? `: ${vig.observacao}` : ""}.`
+  : vig.situacao && dia
+    ? VIGILANCIA[vig.situacao](dia, vig.falhas_seguidas)
+    : "Ainda não foi checada.";
+const observacaoExtra = vig.vigiada ? vig.observacao : null;
+
+const espelho = fonte.espelho;
+const guardadoTexto =
+  espelho && espelho.guardados
+    ? `${espelho.guardados} de ${espelho.declarados} arquivos guardados` +
+      (espelho.bytes ? ` (${formatarBytes(espelho.bytes)})` : "") +
+      (espelho.ultimo_em ? `, o último em ${formatarData(espelho.ultimo_em)}` : "")
+    : espelho && espelho.declarados
+      ? `${espelho.declarados} arquivos na fila para guardar — nenhum baixado ainda`
+      : null;
+---
+
+<article class="ficha">
+  <h3>{fonte.orgao}</h3>
+  <p class="publica">{fonte.publica}</p>
+
+  <dl>
+    <dt>Com que frequência publica</dt>
+    <dd>{fonte.atualizacao}</dd>
+
+    {
+      fonte.indicadores.length > 0 && (
+        <>
+          <dt>No site</dt>
+          <dd>{fonte.indicadores.join(" · ")}</dd>
+        </>
+      )
+    }
+
+    {
+      guardadoTexto && (
+        <>
+          <dt>Cópia guardada por nós</dt>
+          <dd>{guardadoTexto}</dd>
+        </>
+      )
+    }
+
+    <dt>Checagem automática</dt>
+    <dd>
+      {textoVigilancia}
+      {observacaoExtra && <span class="observacao"> {observacaoExtra}</span>}
+    </dd>
+  </dl>
+
+  {
+    fonte.bloqueio && (
+      <p class="bloqueio">
+        <strong>O que trava:</strong> {fonte.bloqueio}
+      </p>
+    )
+  }
+
+  <p class="oficial">
+    <a href={fonte.pagina_oficial} rel="noopener">Ver no site oficial do órgão</a>
+  </p>
+</article>
+
+<style>
+  .ficha {
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio-m);
+    padding: var(--esp-4);
+    margin-bottom: var(--esp-4);
+  }
+  h3 {
+    margin: 0 0 var(--esp-2);
+    font-size: var(--texto-t3);
+  }
+  .publica {
+    margin: 0 0 var(--esp-3);
+  }
+  dl {
+    margin: 0;
+    font-size: var(--texto-menor);
+  }
+  dt {
+    color: var(--cor-neutra);
+    font-weight: var(--peso-medio);
+  }
+  dd {
+    margin: 0 0 var(--esp-2);
+  }
+  .observacao {
+    color: var(--cor-neutra);
+  }
+  .bloqueio {
+    margin: var(--esp-3) 0 0;
+    padding: var(--esp-3);
+    border-left: 4px solid var(--cor-atencao);
+    background: var(--cor-papel-suave);
+    font-size: var(--texto-menor);
+  }
+  .oficial {
+    margin: var(--esp-3) 0 0;
+    font-size: var(--texto-menor);
+  }
+  .oficial a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--alvo-toque);
+  }
+</style>

@@ -60,6 +60,12 @@ jobs:
       - name: Gerar JSONs de serving
         run: python -m pipelines.marts.serving --ano "${{ inputs.ano }}"
 
+      # A ficha pública de cada fonte (/fontes). Roda aqui porque depende de dois
+      # arquivos que só existem no bucket: o manifesto do espelho e o estado do
+      # watcher. Local, sem R2, a página sairia dizendo que nada foi guardado.
+      - name: Ficha das fontes
+        run: python -m pipelines.marts.fontes
+
       # O site é construído no Pages a partir destes JSONs; aqui eles ficam como
       # artefato para inspeção e para quem estiver sem acesso ao R2.
       - name: Publicar JSONs como artefato

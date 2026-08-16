@@ -30,6 +30,23 @@ export function lerMunicipio(codigoIbge) {
 }
 
 /**
+ * A ficha pública de cada fonte (`/fontes`). Gerado por
+ * `python -m pipelines.marts.fontes`, que deriva a situação dos fatos — o site
+ * só formata. Falta do arquivo derruba o build de propósito: a alternativa
+ * seria publicar uma página sobre transparência com estado inventado.
+ */
+export function lerFontes() {
+  const arquivo = path.join(RAIZ_DADOS, "fontes.json");
+  if (!fs.existsSync(arquivo)) {
+    throw new Error(
+      `fontes.json não encontrado em ${RAIZ_DADOS}. ` +
+        "Rode antes: python -m pipelines.marts.fontes"
+    );
+  }
+  return JSON.parse(fs.readFileSync(arquivo, "utf-8"));
+}
+
+/**
  * Todos os indicadores que o projeto publica, na ordem em que aparecem na
  * página. Existe por causa da regra de ferro do PRODUTO §2.5: dado ausente não
  * é zero **nem linha sumida**. O JSON de um município traz só os indicadores
@@ -76,6 +93,20 @@ export function formatarNumero(valor) {
 export function formatarData(iso) {
   const [ano, mes, dia] = iso.split("-");
   return `${dia}/${mes}/${ano}`;
+}
+
+/** "1,9 GB" — o leitor entende tamanho de arquivo, não contagem de bytes. */
+export function formatarBytes(bytes) {
+  if (!bytes) return null;
+  const unidades = ["bytes", "KB", "MB", "GB", "TB"];
+  let valor = bytes;
+  let i = 0;
+  while (valor >= 1024 && i < unidades.length - 1) {
+    valor /= 1024;
+    i += 1;
+  }
+  const casas = valor < 10 && i > 1 ? 1 : 0;
+  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: casas }).format(valor)} ${unidades[i]}`;
 }
 
 /**

@@ -75,6 +75,7 @@ pytest -q -m live                                   # smoke tests contra APIs re
 ruff check .; ruff format .
 python -m pipelines.siconfi.ingest_entes            # dimensão de entes (5.598)
 python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
+python -m pipelines.marts.fontes                    # ficha pública das fontes (/fontes)
 ```
 
 - **TDD é obrigatório em todo desenvolvimento**: escrever o teste antes (vermelho), implementar
@@ -104,7 +105,11 @@ python -m pipelines.siconfi.ingest_dca --exercicio 2024 --uf PE
 - **Ao adicionar fonte no `fontes.yaml`, declare `sonda:`** com um endpoint real (não o
   `api_base`, que costuma ser prefixo e dar 404), `status_ok` quando 401/403 for resposta
   saudável, e `detectar_mudanca: false` se a assinatura oscilar entre requests. Fonte sem
-  `sonda:` não é vigiada — deixe comentado o porquê.
+  `sonda:` não é vigiada — declare o motivo em `ficha.nao_vigiada` (cobrado por teste).
+- **Declare também `ficha:`** — órgão, o que publica (em português simples), com que frequência
+  e a `pagina_oficial` verificada. É o que o cidadão lê em `/fontes`. A **situação** da fonte
+  não se declara: `pipelines/marts/fontes.py` a deriva dos fatos. Fonte sem ficha quebra
+  `tests/test_fontes_publicas.py`, que existe para nenhuma sumir da página em silêncio.
 - Falhas de pipeline avisam o canal de operações: envolver o `main()` em
   `alertas.falhas_alertadas(contexto)`. Só falha alerta — sucesso de rotina viraria ruído.
 - Repo: `marconetsf/praca-publica` (público). **Main protegida: PR obrigatório** (0 aprovações,
