@@ -12,6 +12,12 @@
 Repositório: **[marconetsf/praca-publica](https://github.com/marconetsf/praca-publica)** (público).
 Main protegida: **PR obrigatório** (0 aprovações, CI verde, sem force-push). Nunca commitar direto.
 
+**Os documentos são organizados por braço** — cada frente tem sua pasta em `docs/` e um agente
+especializado em `.claude/agents/` com as restrições que ele não pode reabrir. O mapa completo
+está no `CLAUDE.md`; em resumo: `ciencia-politica` (o que medir), `arquitetura` (como o sistema
+absorve o imprevisto), `infra` (onde roda e como não vaza), `design-praca` (a página que o
+cidadão lê), `engajamento` (fazer o dado circular). Documento novo entra na pasta do braço.
+
 | Marco | Estado |
 |---|---|
 | **M0.1–M0.7** | ✅ código completo e validado contra os serviços reais |
@@ -58,21 +64,36 @@ gh run list --event schedule --limit 12
    é API JSON, não arquivo, então não passa pelo espelhador atual. Decidir se vira ingestão
    histórica (M1.2) em vez de espelho.
 
-### 3. Indicadores que mostram evolução
+### 3. Transparência da própria Praça — pactuado em 15/08/2026
+O bug dos **7 municípios órfãos** já está corrigido (`serving.gerar(universo=…)`): quem não
+declarou nada agora tem página dizendo isso, em vez de sumir do site. Restam três entregas,
+nesta ordem:
+
+1. **Publicar `/fontes`** — uma ficha por órgão federal: o que ele publica, com que atraso, o
+   que já conseguimos e o que está bloqueado. É a contrapartida honesta de cobrar transparência
+   dos municípios.
+2. **Menu de feedback** para o leitor contestar uma ausência ("meu município declarou, sim").
+   Sem coleta de dado pessoal além do necessário para responder.
+3. **Publicar a fração de transparência** por município, com o enquadramento acordado:
+   **diagnóstico, não punição** — é benéfico para o município ter o resultado do exame. Peso
+   multiplicado pela população: déficit em cidade grande pesa mais porque atinge mais gente.
+   O desenho está em [TRANSPARENCIA.md](ciencia-politica/TRANSPARENCIA.md).
+
+### 4. Indicadores que mostram evolução
 O MVP só tem indicadores de composição de gasto, que não têm direção — não respondem "minha
-cidade está melhorando?". O critério de escolha está em [INDICADORES.md](INDICADORES.md) e o
-andamento em **[CHECKLIST-INDICADORES.md](CHECKLIST-INDICADORES.md)**, que também lista os
+cidade está melhorando?". O critério de escolha está em [INDICADORES.md](ciencia-politica/INDICADORES.md) e o
+andamento em **[CHECKLIST-INDICADORES.md](ciencia-politica/CHECKLIST-INDICADORES.md)**, que também lista os
 bloqueios (SINASC nacional só até 2017; IDEB sem série; `.dbc` sem conversor).
 
 Próximo da fila por prontidão real: **abandono escolar** — única fonte com espelho completo e
 formato legível.
 
-### 4. M1.1 — contratos e a dívida do `cod_ibge`
+### 5. M1.1 — contratos e a dívida do `cod_ibge`
 Antes de qualquer ingestão nova. Inclui a **violação da regra 2** que está aberta: o
 `cod_ibge` é gravado como **BIGINT** no staging do SICONFI, e a regra exige `VARCHAR(7)`
 (zeros à esquerda). Corrigir junto com os contratos YAML e o gate raw→staging.
 
-### 5. M1.2 em diante
+### 6. M1.2 em diante
 SICONFI nacional → IBGE → INEP (sobre o espelho já feito) → DataSUS (idem) → ANEEL → CAGED.
 Ver ESCOPO §3.
 
@@ -105,6 +126,14 @@ Ver ESCOPO §3.
   HTTP 200. A fonte está no ar — inalcançável de lá. Marcado como `bloqueia_datacenter: true` no
   YAML, o que faz o watcher pular a sonda em CI. **Consequência para o M1.4: o pipeline do INEP
   não vai rodar no Actions** — precisa de máquina em rede brasileira (ou o VPS da Fase 2).
+
+- **Iterar sobre o fato apaga quem não declarou.** O `serving` gerava página só para município
+  presente no fato — 7 municípios do Norte (112 mil habitantes) simplesmente não existiam no
+  site. Sempre parta do **universo** esperado e trate a ausência como conteúdo.
+
+- **A máquina de desenvolvimento sai da Espanha** (IP residencial em Madri). Portal gov.br que
+  responde 403 ou não responde pode estar geobloqueando, não caído — é o caso suspeito do
+  `dadosabertos.aneel.gov.br`. Confirme de rede brasileira antes de declarar fonte morta.
 
 - O `LIST` do FTP do DataSUS e do PDET vem em **formato MS-DOS**, não Unix.
 - O FTP do MTPS devolve **nomes de arquivo em latin-1** (`ftp_encoding` no YAML).

@@ -6,7 +6,7 @@ model: inherit
 ---
 
 Você desenha a interface da **Praça Pública**: dados públicos brasileiros para o cidadão
-comum. Antes de qualquer proposta visual, leia `docs/PRODUTO.md` §2 e §3 — eles têm decisões
+comum. Antes de qualquer proposta visual, leia `docs/produto/PRODUTO.md` §2 e §3 — eles têm decisões
 já fechadas que você não deve reabrir sem motivo forte.
 
 ## Quem lê o que você desenha

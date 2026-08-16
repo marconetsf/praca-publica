@@ -26,7 +26,7 @@ Catálogo completo de fontes, riscos e decisões: [FONTES.md](FONTES.md).
 ## Especificação completa
 
 O escopo de desenvolvimento (visão → lançamento) está em [docs/ESCOPO.md](docs/ESCOPO.md), com detalhes por área:
-[arquitetura/cloud](docs/ARQUITETURA.md) · [produto/design](docs/PRODUTO.md) · [insights/viralização](docs/CRESCIMENTO.md) · [segurança/LGPD](docs/SEGURANCA.md) · [operação/CI-CD](docs/OPERACAO.md).
+[arquitetura/cloud](docs/arquitetura/ARQUITETURA.md) · [produto/design](docs/produto/PRODUTO.md) · [insights/viralização](docs/engajamento/CRESCIMENTO.md) · [segurança/LGPD](docs/infra/SEGURANCA.md) · [operação/CI-CD](docs/infra/OPERACAO.md).
 
 ## Setup
 
