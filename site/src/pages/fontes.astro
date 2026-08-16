@@ -1,0 +1,122 @@
+---
+/**
+ * `/fontes` — de onde vêm os dados, e o que ainda não conseguimos.
+ *
+ * O site mede quanto cada prefeitura informou. A contrapartida honesta é dizer,
+ * com a mesma clareza, o que **nós** obtivemos de cada órgão: o que já virou
+ * número na página, o que está só guardado, o que nunca foi baixado e o que
+ * está fora do alcance. Sem esta página, "o dado não existe" e "não fomos
+ * buscar" pareceriam a mesma coisa para o leitor — e não são.
+ *
+ * Nada aqui é escrito à mão: o `fontes.json` vem de `pipelines/marts/fontes.py`,
+ * que deriva cada situação dos fatos (indicador publicado, manifesto do espelho,
+ * estado do watcher).
+ */
+import Base from "../layouts/Base.astro";
+import Cabecalho from "../components/Cabecalho.astro";
+import Titulo from "../components/Titulo.astro";
+import Nota from "../components/Nota.astro";
+import FichaFonte from "../components/FichaFonte.astro";
+import { lerFontes, formatarData } from "../dados.js";
+
+const dados = lerFontes();
+
+// Rótulo e explicação de cada situação. A explicação importa tanto quanto o
+// rótulo: "guardado" não quer dizer nada sozinho para quem chegou pelo WhatsApp.
+const SECOES = [
+  {
+    chave: "no_site",
+    titulo: "Já está no site",
+    explicacao:
+      "Os números desta fonte aparecem hoje nas páginas das cidades, com a conta explicada em cada card.",
+  },
+  {
+    chave: "guardado",
+    titulo: "Guardado, ainda sem virar número",
+    explicacao:
+      "Baixamos os arquivos e guardamos uma cópia nossa, porque fonte pública some. Ainda não viraram indicador no site.",
+  },
+  {
+    chave: "planejado",
+    titulo: "Ainda não fomos buscar",
+    explicacao:
+      "Está no nosso catálogo, mas nada foi baixado até agora. É trabalho nosso pela frente, não falha do órgão.",
+  },
+  {
+    chave: "bloqueado",
+    titulo: "Fora do nosso alcance",
+    explicacao:
+      "Tentamos e não conseguimos. O motivo está escrito em cada ficha — e nenhum deles envolve driblar bloqueio de quem publica.",
+  },
+];
+
+const porSituacao = (chave) => dados.fontes.filter((f) => f.situacao === chave);
+---
+
+<Base
+  titulo="De onde vêm os dados — Praça Pública"
+  descricao="As fontes públicas que usamos, o que já está no site, o que está guardado e o que não conseguimos obter."
+>
+  <Cabecalho
+    titulo="De onde vêm os dados"
+    apoio={`${dados.fontes.length} fontes acompanhadas · situação em ${formatarData(dados.gerado_em)}`}
+    migalha={[{ texto: "Início", href: "/" }, { texto: "De onde vêm os dados" }]}
+  />
+
+  <p class="chamada">
+    Todo número deste site vem de um órgão público, com data. Esta página mostra
+    quais são esses órgãos, o que cada um publica e — principalmente — o que
+    ainda não conseguimos obter deles.
+  </p>
+
+  <Nota tipo="info" titulo="Por que publicamos isso">
+    <p>
+      A Praça Pública cobra transparência de quem governa. Seria estranho não
+      cobrar de si mesma. Quando um dado falta na página da sua cidade, você
+      consegue ver aqui se o problema é do órgão que não publicou ou nosso, que
+      ainda não fomos buscar.
+    </p>
+  </Nota>
+
+  {
+    SECOES.map((secao) => {
+      const fontes = porSituacao(secao.chave);
+      if (fontes.length === 0) return null;
+      return (
+        <section aria-labelledby={`s-${secao.chave}`}>
+          <Titulo nivel={2} id={`s-${secao.chave}`} ancora>
+            {secao.titulo} ({fontes.length})
+          </Titulo>
+          <p class="explicacao">{secao.explicacao}</p>
+          {fontes.map((fonte) => (
+            <FichaFonte fonte={fonte} />
+          ))}
+        </section>
+      );
+    })
+  }
+
+  <Titulo nivel={2} id="checagem">Como sabemos que uma fonte saiu do ar</Titulo>
+  <p class="explicacao">
+    Todo dia de manhã um programa nosso bate na porta de cada fonte e anota se ela
+    respondeu. É daí que sai a data de checagem de cada ficha. Fonte que só existe
+    por FTP ainda não entra nessa checagem, e a ficha diz isso.
+  </p>
+  <p class="explicacao">
+    Quando um endereço recusa a nossa conexão mas continua no ar para quem acessa
+    pelo navegador, registramos como <strong>não conseguimos checar</strong> — e não
+    como fonte caída. A diferença é importante: o problema é nosso, não do órgão.
+  </p>
+</Base>
+
+<style>
+  .chamada {
+    font-size: var(--texto-medio);
+    margin-bottom: var(--esp-5);
+  }
+  .explicacao {
+    color: var(--cor-neutra);
+    font-size: var(--texto-menor);
+    margin-bottom: var(--esp-4);
+  }
+</style>

@@ -83,6 +83,9 @@ class Indicador:
     contrato: Contrato
     fonte: str = "SICONFI/DCA"
     orgao: str = "Tesouro Nacional"
+    # a chave da fonte em config/fontes.yaml — é o que liga este indicador à
+    # ficha pública de /fontes, sem casar nomes de órgão por string
+    fonte_id: str = "siconfi"
     versao_metodologia: int = 1
 
     @property
