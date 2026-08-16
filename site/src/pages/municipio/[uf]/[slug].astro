@@ -123,6 +123,16 @@ const apoio =
         )
       )
     }
+    {
+      /* Só aparece quando falta algo: um convite a contestar num município com
+         a página completa seria ruído, e o leitor aprende a ignorar o aviso. */
+      faltantes.length > 0 && (
+        <p class="contestar">
+          Acha que {m.nome} enviou este dado?{" "}
+          <a href="/feedback">Veja como conferir na fonte</a>.
+        </p>
+      )
+    }
   </section>
 
   <p class="identificacao numero">
@@ -143,6 +153,9 @@ const apoio =
   }
   .explica {
     color: var(--cor-neutra);
+    font-size: var(--texto-menor);
+  }
+  .contestar {
     font-size: var(--texto-menor);
   }
   .identificacao {
