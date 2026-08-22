@@ -30,7 +30,10 @@ ANEXO_DESPESA = "DCA-Anexo I-E"
 COLUNA_DESPESA = "Despesas Pagas"
 ANEXO_RECEITA = "DCA-Anexo I-C"
 COLUNA_RECEITA = "Receitas Brutas Realizadas"
+ANEXO_NATUREZA = "DCA-Anexo I-D"  # a mesma despesa, vista por o que se comprou
 CONTA_TOTAL = "Despesas Exceto Intraorçamentárias"
+CONTA_DESPESA_GERAL = "Total Geral da Despesa"
+CONTA_PESSOAL = "3.1.00.00.00 - Pessoal e Encargos Sociais"
 CONTA_SAUDE = "10 - Saúde"
 CONTA_EDUCACAO = "12 - Educação"
 CONTA_IMPOSTOS = "1.1.0.0.00.0.0 - Impostos, Taxas e Contribuições de Melhoria"
@@ -38,6 +41,13 @@ CONTA_TRANSFERENCIAS = "1.7.0.0.00.0.0 - Transferências Correntes"
 
 PISO_EDUCACAO = 0.25
 PISO_SAUDE = 0.15
+
+# Teto de plausibilidade da folha. A mediana dos 443 municípios do Norte é 47% e
+# o percentil 90 é 63%; acima de 85% a explicação provável não é gestão, e sim
+# declaração incompleta — o município informou o pessoal e esqueceu o resto.
+# Seis municípios do TO caíram aqui em 2024, a mesma UF dos 31 com receita
+# negativa. É AVISO, não CRÍTICO: improvável não é impossível.
+TETO_FOLHA = 0.85
 # folga sobre o piso: a base aproximada é maior que a legal, então o percentual
 # calculado sai menor. Só alerta quem está MUITO abaixo — evita acusar quem
 # cumpre a lei e só parece não cumprir por causa do nosso denominador inflado.
@@ -65,14 +75,24 @@ NAO_E_AFERICAO = (
 
 def _valores(con, dca: str) -> dict:
     """`{codigo: {conta: valor}}` com as contas que interessam ao gate."""
-    contas = (CONTA_TOTAL, CONTA_SAUDE, CONTA_EDUCACAO, CONTA_IMPOSTOS, CONTA_TRANSFERENCIAS)
+    contas = (
+        CONTA_TOTAL,
+        CONTA_SAUDE,
+        CONTA_EDUCACAO,
+        CONTA_IMPOSTOS,
+        CONTA_TRANSFERENCIAS,
+        CONTA_DESPESA_GERAL,
+        CONTA_PESSOAL,
+    )
     lista = ", ".join(f"'{c}'" for c in contas)
     linhas = con.sql(f"""
         SELECT lpad(CAST(cod_ibge AS VARCHAR), 7, '0') AS codigo, conta, valor
         FROM '{dca}'
         WHERE conta IN ({lista})
           AND ((anexo = '{ANEXO_DESPESA}' AND coluna = '{COLUNA_DESPESA}')
-            OR (anexo = '{ANEXO_RECEITA}' AND coluna = '{COLUNA_RECEITA}'))
+            OR (anexo = '{ANEXO_RECEITA}' AND coluna = '{COLUNA_RECEITA}')
+            -- o I-D responde "o que se comprou": é dele que sai a folha
+            OR (anexo = '{ANEXO_NATUREZA}' AND coluna = '{COLUNA_DESPESA}'))
     """).fetchall()
 
     por_municipio: dict[str, dict[str, float]] = {}
@@ -170,6 +190,20 @@ def _checar_municipio(codigo: str, contas: dict, soma_funcoes: float | None) -> 
             "CRITICO",
             f"funções somam {soma_funcoes:.2f}, total declarado é {total:.2f}",
         )
+
+    # folha quase igual à despesa inteira denuncia declaração incompleta muito
+    # antes de denunciar excesso de servidor — e o indicador de pessoal sai daqui
+    pessoal, despesa_geral = contas.get(CONTA_PESSOAL), contas.get(CONTA_DESPESA_GERAL)
+    if pessoal is not None and despesa_geral:
+        proporcao = pessoal / despesa_geral
+        if proporcao > TETO_FOLHA:
+            registrar(
+                "folha_acima_do_esperado",
+                "AVISO",
+                f"{proporcao:.1%} da despesa é pessoal (mediana do Norte: 47%) — "
+                "provável declaração incompleta das outras naturezas",
+                "siconfi_despesa_pessoal_pct",
+            )
 
     base = (contas.get(CONTA_IMPOSTOS) or 0) + (contas.get(CONTA_TRANSFERENCIAS) or 0)
     if base <= 0:

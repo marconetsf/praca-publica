@@ -40,8 +40,10 @@ DIM = [
 ]
 
 FATO = [
-    ("1400100", 2024, "siconfi_despesa_saude_pc", 1, 1030.0, 1030.0, 7, 4),
+    # educação vem antes no fato, mas depois na ordem editorial: é o par que
+    # prova que o JSON sai na ordem do mart, e não na do SQL
     ("1400100", 2024, "siconfi_despesa_educacao_pc", 1, 1354.0, 1088.0, 7, 1),
+    ("1400100", 2024, "siconfi_despesa_saude_pc", 1, 1030.0, 1030.0, 7, 4),
     # município com indicador sem comparação (grupo pequeno)
     ("1100015", 2024, "siconfi_despesa_saude_pc", 1, 2500.0, None, 3, None),
 ]
@@ -59,6 +61,9 @@ INDICADORES = [
         "formula tecnica",
         "Pegamos o total pago em saúde e dividimos pelos moradores.",
         "O valor é declarado pela prefeitura, sem auditoria.",
+        "A prefeitura não declarou o gasto com saúde do ano.",
+        "area",
+        0,
     ),
     (
         "siconfi_despesa_educacao_pc",
@@ -72,6 +77,9 @@ INDICADORES = [
         "formula tecnica",
         "Pegamos o total pago em educação e dividimos pelos moradores.",
         "Dividimos por morador, não por aluno.",
+        "A prefeitura não declarou o gasto com educação do ano.",
+        "area",
+        1,
     ),
 ]
 
@@ -95,9 +103,9 @@ def marts(tmp_path):
         "CREATE TABLE i (indicador_id VARCHAR, nome_exibicao VARCHAR, descricao_publica VARCHAR,"
         " fonte VARCHAR, orgao VARCHAR, unidade VARCHAR, direcao_melhor VARCHAR,"
         " versao_metodologia INT, formula_sql VARCHAR, formula_legivel VARCHAR,"
-        " ressalvas VARCHAR)"
+        " ressalvas VARCHAR, ausencia_significa VARCHAR, grupo VARCHAR, ordem INT)"
     )
-    con.executemany("INSERT INTO i VALUES (?,?,?,?,?,?,?,?,?,?,?)", INDICADORES)
+    con.executemany("INSERT INTO i VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", INDICADORES)
 
     caminhos = {}
     for tabela, nome in (("d", "dim"), ("f", "fato"), ("i", "dim_indicador")):
@@ -173,6 +181,19 @@ def test_comparacao_viaja_junto_do_indicador(gerados):
     assert educacao["comparacao"]["n_parecidos"] == 7
     assert educacao["comparacao"]["posicao"] == 1
     assert educacao["comparacao"]["grupo"] == "N|100k_500k"
+
+
+def test_indicadores_saem_na_ordem_editorial_do_mart(gerados):
+    """A ordem dos cards é decisão de quem conhece os números, não do alfabeto.
+
+    Com 15 indicadores, ordenar por `indicador_id` fazia a página (e o "Em
+    resumo", que vira print de WhatsApp) abrir com administração e agricultura.
+    """
+    dados = json.loads((gerados / "municipio" / "1400100.json").read_text(encoding="utf-8"))
+    assert [i["id"] for i in dados["indicadores"]] == [
+        "siconfi_despesa_saude_pc",
+        "siconfi_despesa_educacao_pc",
+    ]
 
 
 def test_sem_comparacao_o_campo_e_nulo_e_nao_ausente(gerados):

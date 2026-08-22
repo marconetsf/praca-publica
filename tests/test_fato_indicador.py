@@ -136,6 +136,134 @@ def test_valor_negativo_nao_e_publicado(tmp_path):
     assert "2607901" in codigos
 
 
+# ---------------------------------------------------------------- razão entre duas contas
+
+
+def _parquets(tmp_path, linhas_dca, linhas_dim):
+    """Grava DCA e dimensão em parquet e devolve os dois caminhos."""
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE d (cod_ibge BIGINT, uf VARCHAR, anexo VARCHAR, coluna VARCHAR, "
+        "conta VARCHAR, valor DOUBLE, populacao BIGINT)"
+    )
+    con.executemany("INSERT INTO d VALUES (?,?,?,?,?,?,?)", linhas_dca)
+    dca = tmp_path / "dca.parquet"
+    con.execute(f"COPY d TO '{dca.as_posix()}' (FORMAT parquet)")
+
+    con.execute(
+        "CREATE TABLE m (codigo_municipio_ibge VARCHAR, nome VARCHAR, uf VARCHAR, "
+        "regiao VARCHAR, populacao_referencia BIGINT, faixa_porte VARCHAR, "
+        "grupo_comparacao VARCHAR)"
+    )
+    con.executemany("INSERT INTO m VALUES (?,?,?,?,?,?,?)", linhas_dim)
+    dim = tmp_path / "dim.parquet"
+    con.execute(f"COPY m TO '{dim.as_posix()}' (FORMAT parquet)")
+    return dca, dim
+
+
+def _razao(codigo=2611101):
+    """O primeiro indicador que divide uma conta por outra, e não pela população."""
+    return next(i for i in fato_indicador.INDICADORES if i.denominador is not None)
+
+
+def _linhas_de_razao(indicador, *, codigo, numerador, denominador, populacao=10_000):
+    """Monta as duas linhas do DCA que este indicador consome."""
+    linhas = []
+    for conta, valor in ((indicador.numerador, numerador), (indicador.denominador, denominador)):
+        if valor is None:
+            continue
+        linhas.append((codigo, "PE", conta.anexo, conta.coluna, conta.conta, valor, populacao))
+    return linhas
+
+
+def _construir_razao(tmp_path, casos):
+    """`casos`: [(codigo, numerador, denominador)]. Devolve o fato do indicador de razão."""
+    indicador = _razao()
+    dca_linhas, dim_linhas = [], []
+    for codigo, numerador, denominador in casos:
+        dca_linhas += _linhas_de_razao(
+            indicador, codigo=codigo, numerador=numerador, denominador=denominador
+        )
+        dim_linhas.append((str(codigo), f"M{codigo}", "PE", "NE", 10_000, "faixa", "NE|faixa"))
+
+    dca, dim = _parquets(tmp_path, dca_linhas, dim_linhas)
+    destino = tmp_path / "fato.parquet"
+    fato_indicador.construir(dca, dim, destino, ano=2024)
+    return (
+        duckdb.sql(
+            f"SELECT * FROM '{destino.as_posix()}' WHERE indicador_id = '{indicador.indicador_id}'"
+        ),
+        indicador,
+    )
+
+
+def test_indicador_de_razao_divide_por_outra_conta(tmp_path):
+    """25 de imposto sobre 100 de receita = 25%, e não 0,0025 por morador.
+
+    Sem isto, todo indicador teria que ser "por morador" — e "de cada R$ 100 que
+    entram, R$ 25 são impostos da própria cidade" é a frase que o leitor entende
+    sem precisar saber quanto é muito.
+    """
+    fato, indicador = _construir_razao(tmp_path, [(2611101, 25.0, 100.0)])
+    linha = dict(zip(fato.columns, fato.fetchall()[0], strict=True))
+    assert linha["valor"] == pytest.approx(25.0)
+    assert indicador.unidade.startswith("%")
+
+
+def test_razao_sem_o_denominador_declarado_nao_vira_linha(tmp_path):
+    """Sem a conta do denominador, a divisão não existe — e ausência não é zero."""
+    fato, _ = _construir_razao(tmp_path, [(2611101, 25.0, None), (2607901, 25.0, 100.0)])
+    codigos = [linha[0] for linha in fato.fetchall()]
+    assert codigos == ["2607901"]
+
+
+def test_denominador_zerado_nao_estoura_a_divisao(tmp_path):
+    fato, _ = _construir_razao(tmp_path, [(2611101, 25.0, 0.0), (2607901, 25.0, 100.0)])
+    assert [linha[0] for linha in fato.fetchall()] == ["2607901"]
+
+
+def test_proporcao_acima_do_maximo_declarado_nao_e_publicada(tmp_path):
+    """Parte maior que o todo é erro de declaração, não notícia.
+
+    Mesma regra do valor negativo: o card falta e diz por quê, em vez de exibir
+    "137% da receita vem de impostos", que nenhum leitor consegue interpretar.
+    """
+    fato, _ = _construir_razao(tmp_path, [(2611101, 137.0, 100.0), (2607901, 25.0, 100.0)])
+    assert [linha[0] for linha in fato.fetchall()] == ["2607901"]
+
+
+def test_razao_guarda_o_denominador_em_reais(tmp_path):
+    """Auditoria: dá para refazer a conta sem adivinhar sobre o que foi dividido."""
+    fato, _ = _construir_razao(tmp_path, [(2611101, 25.0, 100.0)])
+    linha = dict(zip(fato.columns, fato.fetchall()[0], strict=True))
+    assert linha["denominador"] == pytest.approx(100.0)
+
+
+def test_indicadores_cobrem_entrada_e_saida_do_dinheiro():
+    """O MVP respondia só 'quanto gastou em três áreas'. Isso é pouco.
+
+    O leitor pergunta de onde vem o dinheiro, para onde ele vai e o que sobra
+    para obra. Sem essas três perguntas, a página não conta a história — e a
+    medida de transparência fica quase binária, com três itens só.
+    """
+    ids = {i.indicador_id for i in fato_indicador.INDICADORES}
+    assert len(ids) >= 10, "poucos indicadores para descrever um orçamento municipal"
+    assert any(i.denominador is not None for i in fato_indicador.INDICADORES)
+    assert any("receita" in i for i in ids) and any("investimento" in i for i in ids)
+
+
+def test_indicador_diz_o_que_a_ausencia_significa():
+    """ "Sem dado" tem dois sentidos, e eles não são intercambiáveis.
+
+    Saneamento aparece em 244 dos 443 municípios: nos outros, ou a prefeitura
+    não gastou nada na área, ou não declarou a linha. Escrever "não declarou"
+    nos dois casos acusaria metade deles por engano.
+    """
+    for definicao in fato_indicador.INDICADORES:
+        assert definicao.ausencia_significa, f"{definicao.indicador_id} não explica a ausência"
+        assert definicao.ausencia_significa.endswith("."), definicao.indicador_id
+
+
 # ---------------------------------------------------------------- supressão por imprecisão
 
 

@@ -49,6 +49,47 @@ def _municipio_saudavel(cod=1400100):
     ]
 
 
+NATUREZA = ("DCA-Anexo I-D", "Despesas Pagas")
+
+
+# ---------------------------------------------------------------- folha de pagamento
+
+
+def _com_folha(pessoal, total=1000.0, cod=1400100):
+    return _municipio_saudavel(cod) + [
+        (cod, *NATUREZA, "Total Geral da Despesa", total),
+        (cod, *NATUREZA, "3.1.00.00.00 - Pessoal e Encargos Sociais", pessoal),
+    ]
+
+
+def test_folha_dentro_do_esperado_nao_gera_achado(tmp_path):
+    """Metade da despesa em pessoal é o normal: a mediana dos 443 é 47%."""
+    assert sanidade.verificar(_dca(tmp_path, _com_folha(500.0))) == []
+
+
+def test_folha_quase_igual_a_despesa_total_e_aviso(tmp_path):
+    """99% da despesa em pessoal denuncia declaração incompleta, não gestão.
+
+    Seis municípios do TO declararam assim em 2024 — a mesma UF dos 31 com
+    receita negativa. O valor é publicável (não é impossível), mas quem for
+    olhar a série precisa saber que ele está fora de qualquer padrão.
+    """
+    achados = sanidade.verificar(_dca(tmp_path, _com_folha(992.0)))
+
+    folha = [a for a in achados if a["check"] == "folha_acima_do_esperado"]
+    assert folha, "99% da despesa em pessoal precisa aparecer no gate"
+    assert folha[0]["severidade"] == "AVISO", "é sinal para investigar, não impedimento"
+    assert "99" in folha[0]["detalhe"]
+
+
+def test_sem_a_despesa_total_declarada_nao_se_avalia_a_folha(tmp_path):
+    """Regra 4: sem denominador não se conclui nada — nem para o bem, nem para o mal."""
+    linhas = _municipio_saudavel() + [
+        (1400100, *NATUREZA, "3.1.00.00.00 - Pessoal e Encargos Sociais", 900.0)
+    ]
+    assert not [a for a in sanidade.verificar(_dca(tmp_path, linhas)) if "folha" in a["check"]]
+
+
 # ---------------------------------------------------------------- soma das partes
 
 

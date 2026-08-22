@@ -2,7 +2,7 @@
 
 > Tracking dos indicadores que respondem **"minha cidade está melhorando?"**. O critério de
 > admissão e o porquê da escolha estão em [INDICADORES.md](INDICADORES.md); aqui fica só o
-> andamento. Atualizado em **15/08/2026**.
+> andamento. Atualizado em **16/08/2026**.
 >
 > Marcar etapa só quando ela estiver verificada contra dado real — não quando o código existir.
 
@@ -28,12 +28,29 @@
 | **Internações evitáveis (ICSAP)** ↓ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | **Horas sem energia (DEC)** ↓ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | **Saldo de empregos formais** ↑ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| *Gasto com saúde/morador* (neutro) | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| *Gasto com educação/morador* (neutro) | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| *Impostos por morador* (neutro) | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ |
+| *15 indicadores do orçamento* (neutros) | ✅ | ✅ | ✅ | ✅ | ✅ | ⬜ |
 
-Os três em itálico são os atuais, de composição de gasto: servem de referência do que é
-"pronto" e mostram a única etapa que falta a todos — a página de metodologia.
+Os 15 em itálico são os do orçamento municipal, publicados em 16/08/2026 — todos da DCA, todos
+sem direção pactuada. Servem de referência do que é "pronto" e mostram a única etapa que falta
+a todos: a página de metodologia.
+
+### Os 15 do orçamento, por bloco da página
+
+| Bloco | Indicadores | Municípios com o dado |
+|---|---|:--:|
+| **De onde vem o dinheiro** | receita total por morador · quanto a cidade arrecada sozinha (%) · impostos por morador | 443 · 412 · 412 |
+| **Para onde vai** | quanto vai para salários (%) · quanto virou obra e equipamento (%) | 442 · 443 |
+| **Por área, por morador** | saúde · educação · assistência social · urbanismo · administração · agricultura · cultura · Câmara · esporte e lazer · saneamento | 443 · 443 · 443 · 434 · 438 · 417 · 418 · 416 · 406 · 244 |
+
+**Por que dois deles são proporção e não "por morador"**: "R$ 1.030 por morador em saúde" não
+responde "isso é muito?" para quem não sabe quanto é muito. "De cada R$ 100 que a prefeitura
+gastou, R$ 47 foram para salários" responde sozinho. Os dois formatos convivem no mesmo fato —
+o divisor é declarado no indicador (`denominador`), não fixo no código.
+
+**Saneamento é o caso que ensinou a taxonomia da ausência**: aparece em 244 dos 443. Nos outros
+199, escrever "a prefeitura não declarou" seria acusação falsa — no Norte quem opera água e
+esgoto costuma ser a companhia do estado. Daí o campo `ausencia_significa`, que viaja da
+definição do indicador até o card de falta.
 
 ## Bloqueios a resolver antes de processar
 

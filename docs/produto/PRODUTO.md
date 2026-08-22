@@ -36,6 +36,7 @@
 Decisões:
 - **Slug por UF** (`/municipio/pe/petrolina`): nomes são únicos dentro da UF, não no país (4 "Bom Jesus"). Código IBGE é chave interna (rodapé + JSON-LD), nunca na URL principal.
 - **Fase 1 = página única por município com âncoras** (`#dinheiro #saude #educacao #energia #trabalho`). Subpáginas temáticas só na v1.1 (evita 33 mil páginas rasas — thin content).
+- **Os cards são agrupados pelo `grupo` declarado no mart** (`entrada` · `saida` · `area`), na ordem definida em `INDICADORES` — nunca alfabética. Com 15 indicadores, ordenar por id fazia a página e o "Em resumo" abrirem com *administração* e *agricultura*. A decisão de o que o leitor vê primeiro é de quem conhece os números, e por isso mora no dado, não no site.
 - **Busca é a home**: campo único, autocomplete client-side sobre índice estático (5.570 nomes + apelidos, ~300 KB gzip). Sem CEP (DNE é pago); geolocalização opcional do navegador resolvida por ponto-em-polígono contra centroides.
 
 ### SEO programático (5.570 páginas)
