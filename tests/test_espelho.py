@@ -278,8 +278,19 @@ def test_nome_do_arquivo_decodifica_espaco_em_url_ftp():
 # ---------------------------------------------------------------- catálogo
 
 
+# Toda fonte do catálogo declara o que se guarda dela (ver test_guarda.py); os
+# alvos do espelho passam por essa declaração antes de virar download.
+GUARDA_INTEGRAL = {
+    "modo": "integral",
+    "medido_em": "2026-08-16",
+    "motivo": "fonte com precedente de apagão",
+}
+
+
 def test_alvos_do_yaml_le_a_lista_espelho_da_fonte():
-    fontes = {"inep": {"espelho": ["https://inep/a.zip", "https://inep/b.zip"]}}
+    fontes = {
+        "inep": {"espelho": ["https://inep/a.zip", "https://inep/b.zip"], "guarda": GUARDA_INTEGRAL}
+    }
     assert espelhar.alvos_do_catalogo(fontes) == [
         ("inep", "https://inep/a.zip"),
         ("inep", "https://inep/b.zip"),
@@ -287,5 +298,15 @@ def test_alvos_do_yaml_le_a_lista_espelho_da_fonte():
 
 
 def test_fonte_sem_espelho_nao_entra():
-    fontes = {"siconfi": {"api_base": "https://x"}, "inep": {"espelho": ["https://inep/a.zip"]}}
+    fontes = {
+        "siconfi": {
+            "api_base": "https://x",
+            "guarda": {
+                "modo": "colheita",
+                "medido_em": "2026-08-16",
+                "motivo": "API com filtro; guardamos as respostas de cada execução",
+            },
+        },
+        "inep": {"espelho": ["https://inep/a.zip"], "guarda": GUARDA_INTEGRAL},
+    }
     assert espelhar.alvos_do_catalogo(fontes) == [("inep", "https://inep/a.zip")]
